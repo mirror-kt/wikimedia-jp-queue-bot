@@ -5,4 +5,20 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[[bin]]
+name = "daily_page_create"
+path = "src/bin/daily_page_create.rs"
+
 [dependencies]
+anyhow = "1.0.72"
+chrono = { version = "0.4.26", default-features = false, features = ["std", "clock"] }
+indoc = "2.0.3"
+mwbot = "0.5.3"
+tokio = { version = "1.29.1", features = [
+    "rt",
+    "rt-multi-thread",
+    "macros",
+    "signal",
+] }
+tracing = "0.1.37"
+tracing-subscriber = "0.3.17"
