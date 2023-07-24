@@ -9,10 +9,19 @@ edition = "2021"
 name = "daily_page_create"
 path = "src/bin/daily_page_create.rs"
 
+[[bin]]
+name = "queue_consume"
+path = "src/bin/queue_consume.rs"
+
 [dependencies]
 anyhow = "1.0.72"
-chrono = { version = "0.4.26", default-features = false, features = ["std", "clock"] }
+chrono = { version = "0.4.26", default-features = false, features = [
+    "std",
+    "clock",
+] }
+if_chain = "1.0.2"
 indoc = "2.0.3"
+kuchiki = "0.8.1"
 mwbot = "0.5.3"
 tokio = { version = "1.29.1", features = [
     "rt",
