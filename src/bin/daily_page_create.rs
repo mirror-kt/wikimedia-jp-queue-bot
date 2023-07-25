@@ -28,7 +28,7 @@ async fn main() -> anyhow::Result<()> {
     let page_content = formatdoc! {r"
         == {} ==
         <noinclude> {{{{Purge}}}} - </noinclude>{{{{カテゴリ関連/議論/ログ日付|date={}}}}}
-        <!-- 新規の依頼は一番下につけたしてください。 -->
+        <!-- 新規の議論は一番下につけたしてください。 -->
         ",
         tomorrow.format("%m月%d日"),
         tomorrow.format("%Y-%m-%d"),

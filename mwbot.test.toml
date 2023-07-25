@@ -1,0 +1,2 @@
+api_url = "https://ja.wikipedia.org/w/api.php"
+rest_url = "https://ja.wikipedia.org/api/rest_v1"

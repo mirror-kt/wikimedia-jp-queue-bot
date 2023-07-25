@@ -2044,15 +2044,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "wikimedia-jp-queue-bot"
+name = "wikimedia_jp_queue_bot"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
  "if_chain",
+ "indexmap 1.9.3",
  "indoc",
  "kuchiki",
  "mwbot",
+ "serde",
  "tokio",
  "tracing",
  "tracing-subscriber",
