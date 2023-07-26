@@ -19,6 +19,7 @@ chrono = { version = "0.4.26", default-features = false, features = [
     "std",
     "clock",
 ] }
+futures-util = "0.3.28"
 if_chain = "1.0.2"
 indexmap19 = { version = "1.9.3", package = "indexmap" }
 indoc = "2.0.3"

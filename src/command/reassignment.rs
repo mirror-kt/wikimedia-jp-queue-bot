@@ -4,7 +4,6 @@ use indexmap19::IndexMap;
 use mwbot::generators::{Generator as _, Search};
 use mwbot::parsoid::prelude::*;
 use mwbot::{Bot, SaveOptions};
-use serde::__private::de::IdentifierDeserializer;
 use tracing::warn;
 
 use crate::action::move_page;
@@ -217,7 +216,6 @@ mod test {
     use indexmap19::indexmap;
     use indoc::indoc;
     use mwbot::parsoid::prelude::*;
-    use mwbot::Bot;
 
     use super::{
         replace_category_tag, replace_redirect_category_template,

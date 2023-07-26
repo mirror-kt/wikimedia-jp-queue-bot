@@ -1,7 +1,7 @@
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
 use wikimedia_jp_queue_bot::command::Command;
-use wikimedia_jp_queue_bot::send_error_message;
+
 
 const QUEUE_PAGE: &str = "利用者:Misato_Kano/sandbox/プロジェクト:カテゴリ関連/キュー";
 
@@ -11,7 +11,7 @@ async fn main() -> anyhow::Result<()> {
 
     let bot = Bot::from_default_config().await?;
 
-    let mut queue_page = bot.page(QUEUE_PAGE)?;
+    let queue_page = bot.page(QUEUE_PAGE)?;
     let queue_html = queue_page.html().await?.into_mutable();
 
     let sections = queue_html.iter_sections();

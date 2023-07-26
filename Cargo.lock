@@ -2049,6 +2049,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "futures-util",
  "if_chain",
  "indexmap 1.9.3",
  "indoc",

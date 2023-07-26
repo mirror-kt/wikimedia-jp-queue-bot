@@ -1,13 +1,14 @@
 pub mod reassignment;
+pub mod remove;
 
-use anyhow::{anyhow, Context as _};
+use anyhow::anyhow;
 use if_chain::if_chain;
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
 
 use self::reassignment::reassignment;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Command {
     /// `from` に直属するすべてのページ(記事とカテゴリ)が `to` に再配属される.
     ///
@@ -202,9 +203,13 @@ impl Command {
             .iter()
             .find(|link| !link.target().starts_with("Category:"))
             .cloned()
-            .context("議論が行われた場所を示すリンクが必要です.")?;
+            .ok_or_else(Self::discussion_link_notfound)?;
 
         Ok(link.target())
+    }
+
+    fn discussion_link_notfound() -> anyhow::Error {
+        anyhow!("議論が行われた場所を示すリンクが必要です.")
     }
 
     pub async fn execute(&self, bot: &Bot) -> anyhow::Result<Status> {
@@ -233,4 +238,133 @@ impl Command {
 pub enum Status {
     EmergencyStopped,
     Done { done_count: u32 },
+}
+
+#[cfg(test)]
+mod test {
+    use indoc::indoc;
+    use mwbot::parsoid::prelude::*;
+
+    use super::Command;
+    use crate::test;
+
+    #[tokio::test]
+    async fn test_parse_command() {
+        let bot = test::bot().await;
+
+        let wikitext = indoc! {"
+            == Bot: [[:Category:Example]]を[[:Category:Example2]]へ ==
+            [[利用者:Misato Kano]]を参照
+
+            == Bot: [[:Category:Name1]]を[[:Category:Name2]]と[[:Category:Name3]]へ ==
+            [[利用者:Misato Kano]]を参照
+
+            == Bot: (記事) [[:Category:Name1]]を[[:Category:Name2]]へ ==
+            [[利用者:Misato Kano]]を参照
+
+            == Bot: (カテゴリ) [[:Category:Name1]]を[[:Category:Name2]]へ ==
+            [[利用者:Misato Kano]]を参照
+
+            == Bot: [[:Category:Name1]]を除去 ==
+            [[利用者:Misato Kano]]を参照
+
+            == Bot: [[:Category:Name1]]を[[:Category:Name2]]に複製 ==
+            [[利用者:Misato Kano]]を参照
+
+            == Bot: Category:ExampleをCategory:Example2へ ==
+            [[利用者:Misato Kano]]を参照
+
+            == Bot: [[:Category:Example]]を[[:Category:Example2]]へ ==
+            no link
+        "};
+
+        let html = bot
+            .parsoid()
+            .transform_to_html(wikitext)
+            .await
+            .unwrap()
+            .into_mutable();
+
+        let sections = html.iter_sections();
+
+        let result = futures_util::future::join_all(
+            sections
+                .iter()
+                .filter(|section| !section.is_pseudo_section())
+                .map(Command::parse_command)
+                .collect::<Vec<_>>(),
+        )
+        .await;
+
+        let command1 = result[0].as_ref().unwrap();
+        assert_eq!(
+            *command1,
+            Command::ReassignmentAll {
+                from: "Category:Example".to_string(),
+                to: vec!["Category:Example2".to_string()],
+                discussion_link: "利用者:Misato Kano".to_string(),
+            }
+        );
+
+        let command2 = result[1].as_ref().unwrap();
+        assert_eq!(
+            *command2,
+            Command::ReassignmentAll {
+                from: "Category:Name1".to_string(),
+                to: vec!["Category:Name2".to_string(), "Category:Name3".to_string()],
+                discussion_link: "利用者:Misato Kano".to_string(),
+            }
+        );
+
+        let command3 = result[2].as_ref().unwrap();
+        assert_eq!(
+            *command3,
+            Command::ReassignmentArticle {
+                from: "Category:Name1".to_string(),
+                to: vec!["Category:Name2".to_string()],
+                discussion_link: "利用者:Misato Kano".to_string(),
+            }
+        );
+
+        let command4 = result[3].as_ref().unwrap();
+        assert_eq!(
+            *command4,
+            Command::ReassignmentCategory {
+                from: "Category:Name1".to_string(),
+                to: vec!["Category:Name2".to_string()],
+                discussion_link: "利用者:Misato Kano".to_string(),
+            }
+        );
+
+        let command5 = result[4].as_ref().unwrap();
+        assert_eq!(
+            *command5,
+            Command::RemoveCategory {
+                category: "Category:Name1".to_string(),
+                discussion_link: "利用者:Misato Kano".to_string()
+            }
+        );
+
+        let command6 = result[5].as_ref().unwrap();
+        assert_eq!(
+            *command6,
+            Command::DuplicateCategory {
+                source: "Category:Name1".to_string(),
+                dest: "Category:Name2".to_string(),
+                discussion_link: "利用者:Misato Kano".to_string()
+            }
+        );
+
+        let command7 = result[6].as_ref().map_err(|err| err.to_string()).err();
+        assert_eq!(
+            command7,
+            Some("コマンド形式が不正です. コマンドを確認し修正してください.".to_string())
+        );
+
+        let command8 = result[7].as_ref().map_err(|err| err.to_string()).err();
+        assert_eq!(
+            command8,
+            Some("議論が行われた場所を示すリンクが必要です.".to_string())
+        );
+    }
 }

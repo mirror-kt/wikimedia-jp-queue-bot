@@ -1,6 +1,8 @@
 pub mod action;
 pub mod command;
 pub mod consume;
+#[cfg(test)]
+pub mod test;
 
 use indexmap19::indexmap;
 use kuchiki::NodeRef;
