@@ -1,4 +1,5 @@
 pub mod action;
+pub mod category;
 pub mod command;
 pub mod consume;
 #[cfg(test)]

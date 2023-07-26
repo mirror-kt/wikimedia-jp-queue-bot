@@ -84,6 +84,8 @@ impl Command {
             if bot_suffix.borrow().trim() == "へ";
             let nodes = &nodes[1..nodes.len() - 1];
             if let Ok((from, to)) = Self::collect_from_to(nodes);
+            if !to.is_empty();
+            if to.len() <= 5;
             if to.iter().all(|x| x.starts_with("Category:"));
 
             then {
@@ -96,6 +98,8 @@ impl Command {
             if bot_suffix.borrow().trim() == "へ";
             let nodes = &nodes[1..nodes.len() - 1];
             if let Ok((from, to)) = Self::collect_from_to(nodes);
+            if !to.is_empty();
+            if to.len() <= 5;
             if to.iter().all(|x| x.starts_with("Category:"));
 
             then {
@@ -108,6 +112,8 @@ impl Command {
             if bot_suffix.borrow().trim() == "へ";
             let nodes = &nodes[1..nodes.len() - 1];
             if let Ok((from, to)) = Self::collect_from_to(nodes);
+            if !to.is_empty();
+            if to.len() <= 5;
             if to.iter().all(|x| x.starts_with("Category:"));
 
             then {
@@ -135,6 +141,7 @@ impl Command {
             let nodes = &nodes[1..nodes.len() - 1];
             if let Ok((source, dest)) = Self::collect_from_to(nodes);
             if dest.len() == 1;
+            if dest.starts_with("Category:");
 
             then {
                 return Ok(Self::DuplicateCategory { source, dest: dest[0].clone(), discussion_link });
