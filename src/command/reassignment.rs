@@ -1,11 +1,9 @@
-use std::vec;
-
 use mwbot::generators::{Generator as _, Search};
 use mwbot::{Bot, SaveOptions};
 use tracing::warn;
 
 use crate::action::move_page;
-use crate::category::{replace_redirect_category_template, replace_category_tag};
+use crate::category::{replace_category_tag, replace_redirect_category_template};
 use crate::is_emergency_stopped;
 
 use super::Status;
@@ -24,7 +22,7 @@ pub async fn reassignment(
         move_page(bot, &from, &to[0], format!("BOT: {}", &discussion_link)).await?;
     }
 
-    let mut search = Search::new(format!(r#"insource:"{}""#, &from))
+    let mut search = Search::new(format!(r#"insource:"{}""#, from))
         .namespace(vec![
             0,  // 標準名前空間
             14, // Category名前空間

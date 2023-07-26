@@ -1,3 +1,4 @@
+pub mod duplicate;
 pub mod reassignment;
 pub mod remove;
 
@@ -6,6 +7,7 @@ use if_chain::if_chain;
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
 
+use self::duplicate::duplicate_category;
 use self::reassignment::reassignment;
 use self::remove::remove_category;
 
@@ -241,7 +243,11 @@ impl Command {
                 category,
                 discussion_link,
             } => remove_category(bot, category, discussion_link).await,
-            Self::DuplicateCategory { .. } => todo!(),
+            Self::DuplicateCategory {
+                source,
+                dest,
+                discussion_link,
+            } => duplicate_category(bot, source, dest, discussion_link).await,
         }
     }
 }
