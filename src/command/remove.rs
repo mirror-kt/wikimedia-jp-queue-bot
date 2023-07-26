@@ -1,4 +1,4 @@
-use mwbot::generators::{Generator as _, Search, CategoryMembers};
+use mwbot::generators::{CategoryMembers, Generator as _, Search};
 use mwbot::{Bot, SaveOptions};
 use tracing::warn;
 

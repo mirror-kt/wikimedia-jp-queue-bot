@@ -173,7 +173,7 @@ fn replace_redirect_category_template_complex(template: &Template, from: &str, t
 #[cfg(test)]
 mod test {
     use crate::test;
-    
+
     use indoc::indoc;
     use mwbot::parsoid::prelude::*;
 

@@ -1,9 +1,9 @@
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
-use wikimedia_jp_queue_bot::command::Command;
-
-
-const QUEUE_PAGE: &str = "利用者:Misato_Kano/sandbox/プロジェクト:カテゴリ関連/キュー";
+use wikimedia_jp_queue_bot::command::{Command, Status};
+use wikimedia_jp_queue_bot::{
+    send_emergency_stopped_message, send_error_message, send_success_message, QUEUE_PAGE,
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -11,7 +11,7 @@ async fn main() -> anyhow::Result<()> {
 
     let bot = Bot::from_default_config().await?;
 
-    let queue_page = bot.page(QUEUE_PAGE)?;
+    let mut queue_page = bot.page(QUEUE_PAGE)?;
     let queue_html = queue_page.html().await?.into_mutable();
 
     let sections = queue_html.iter_sections();
@@ -23,11 +23,49 @@ async fn main() -> anyhow::Result<()> {
 
     for queue in queues {
         let command = Command::parse_command(queue).await;
-        dbg!(&command);
 
-        // if let Err(error) = command {
-        //     queue_page = send_error_message(error, queue_page, queue).await?;
-        // }
+        let command = match command {
+            Ok(command) => command,
+            Err(err) => {
+                let Ok(page) =
+                    send_error_message(queue_page.clone(), queue, &err.to_string()).await
+                else {
+                    continue;
+                };
+                queue_page = page;
+                continue;
+            }
+        };
+
+        match command.execute(&bot).await {
+            Ok(Status::Done { done_count }) => {
+                let Ok(page) = send_success_message(
+                    queue_page.clone(),
+                    queue,
+                    &format!("{}件の操作を完了しました", done_count),
+                )
+                .await
+                else {
+                    continue;
+                };
+                queue_page = page;
+            }
+            Ok(Status::EmergencyStopped) => {
+                let Ok(page) = send_emergency_stopped_message(queue_page.clone(), queue).await
+                else {
+                    continue;
+                };
+                queue_page = page;
+            }
+            Err(err) => {
+                let Ok(page) =
+                    send_error_message(queue_page.clone(), queue, &err.to_string()).await
+                else {
+                    continue;
+                };
+                queue_page = page;
+            }
+        }
     }
 
     Ok(())
