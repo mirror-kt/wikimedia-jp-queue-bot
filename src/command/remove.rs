@@ -1,15 +1,17 @@
 use mwbot::generators::{Generator as _, Search};
-use mwbot::Bot;
+use mwbot::{Bot, SaveOptions};
 use tracing::warn;
 
+use crate::category::{replace_category_tag, replace_redirect_category_template};
 use crate::is_emergency_stopped;
 
 use super::Status;
 
+#[tracing::instrument]
 pub async fn remove_category(
     bot: &Bot,
     category: &String,
-    _discussion_link: &str,
+    discussion_link: &str,
 ) -> anyhow::Result<Status> {
     let mut search = Search::new(format!(r#"insource:"{}""#, &category))
         .namespace(vec![
@@ -18,7 +20,7 @@ pub async fn remove_category(
         ])
         .generate(bot);
 
-    let done_count = 0;
+    let mut done_count = 0;
     while let Some(page) = search.recv().await {
         if is_emergency_stopped(bot).await {
             return Ok(Status::EmergencyStopped);
@@ -29,11 +31,24 @@ pub async fn remove_category(
             continue;
         };
 
-        let Ok(wikitext) = page.wikitext().await else {
-            warn!("Error while getting wikitext: {:?}", page);
+        let Ok(html) = page.html().await.map(|html| html.into_mutable()) else {
+            warn!("Error while getting html: {:?}", page);
             continue;
         };
-        let _replaced = wikitext.replace(&format!("[[{}]]", category), "");
+
+        replace_category_tag(&html, category, &[]);
+        replace_redirect_category_template(&html, category, &[]);
+
+        let _ = page
+            .save(
+                html,
+                &SaveOptions::summary(&format!(
+                    "BOT: {} カテゴリの削除 ({})",
+                    category, discussion_link
+                )),
+            )
+            .await;
+        done_count += 1;
     }
     Ok(Status::Done { done_count })
 }

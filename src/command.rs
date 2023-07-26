@@ -7,6 +7,7 @@ use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
 
 use self::reassignment::reassignment;
+use self::remove::remove_category;
 
 #[derive(Debug, PartialEq)]
 pub enum Command {
@@ -141,7 +142,7 @@ impl Command {
             let nodes = &nodes[1..nodes.len() - 1];
             if let Ok((source, dest)) = Self::collect_from_to(nodes);
             if dest.len() == 1;
-            if dest.starts_with("Category:");
+            if dest[0].starts_with("Category:");
 
             then {
                 return Ok(Self::DuplicateCategory { source, dest: dest[0].clone(), discussion_link });
@@ -236,7 +237,10 @@ impl Command {
                 to,
                 discussion_link,
             } => reassignment(bot, from, to, discussion_link, false, true).await,
-            Self::RemoveCategory { .. } => todo!(),
+            Self::RemoveCategory {
+                category,
+                discussion_link,
+            } => remove_category(bot, category, discussion_link).await,
             Self::DuplicateCategory { .. } => todo!(),
         }
     }
