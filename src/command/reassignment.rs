@@ -1,4 +1,4 @@
-
+use if_chain::if_chain;
 use mwbot::generators::{CategoryMembers, Generator as _, Search};
 use mwbot::{Bot, SaveOptions};
 use tracing::warn;
@@ -21,6 +21,27 @@ pub async fn reassignment(
     let to_page = bot.page(&to[0])?;
     if !to_page.exists().await? {
         move_page(bot, &from, &to[0], format!("BOT: {}", &discussion_link)).await?;
+    }
+    if_chain! {
+        if let Ok(from_page) = bot.page(from);
+        if let Ok(html) = from_page.html().await;
+        if let Some(revision_id) = html.revision_id();
+
+        then {
+            for to_page in to[1..].iter().map(|to| bot.page(to)).filter_map(|to_page| to_page.ok()) {
+                if !to_page.exists().await.unwrap_or(true) {
+                    let _ = to_page.save(
+                        html.clone(),
+                        &SaveOptions::summary(&format!(
+                            "BOT: https://ja.wikipedia.org/w/index.php?title={}&oldid={} から複製 ({})",
+                            from_page.title(),
+                            revision_id,
+                            discussion_link,
+                        ))
+                    ).await;
+                }
+            }
+        }
     }
 
     let mut search = Search::new(format!(r#"insource:"{}""#, from))
