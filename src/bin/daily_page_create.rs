@@ -14,25 +14,27 @@ async fn main() -> anyhow::Result<()> {
         .with_timezone(&FixedOffset::east_opt(9 * 3600).context("could not parse JST offset")?);
     let tomorrow = today.checked_add_days(Days::new(1)).context("overflowed")?;
 
+    let year = tomorrow.format("%Y");
+    let month = tomorrow.format("%-m"); // without 0-padding
+    let day = tomorrow.format("%-d"); // without 0-padding
+
     // 翌日分のページを作成
-    let page = bot.page(&format!(
-        "プロジェクト:カテゴリ関連/議論/{}/{}",
-        &tomorrow.format("%Y年"),
-        &tomorrow.format("%m月%d日"),
-    ))?;
+    let page_name = format!("プロジェクト:カテゴリ関連/議論/{year}年/{month}月{day}日");
+
+    let page = bot.page(&page_name)?;
     if page.exists().await? {
         info!("page {} already exists", page.title());
         return Ok(());
     }
 
-    let page_content = formatdoc! {r"
-        == {} ==
-        <noinclude> {{{{Purge}}}} - </noinclude>{{{{カテゴリ関連/議論/ログ日付|date={}}}}}
-        <!-- 新規の議論は一番下につけたしてください。 -->
-        ",
-        tomorrow.format("%m月%d日"),
-        tomorrow.format("%Y-%m-%d"),
-    };
+    let page_content = formatdoc! {r#"
+        <noinclude>
+        {{{{プロジェクト:カテゴリ関連/議論/見出し|年={year}|月={month}|日={day}}}}}
+        </noinclude>
+
+        = [[{page_name}|カテゴリ]] =
+        <!-- 新規の議論は一番下に記入してください。 -->
+    "#};
 
     page.save(page_content, &SaveOptions::summary("BOT: 議論ページの作成"))
         .await?;
