@@ -25,15 +25,17 @@ pub fn replace_category_tag(html: &Wikicode, from: &String, to: &[String]) {
 
     category_tag.set_category(&to[0]);
     category_tag.set_sort_key(None);
-    if to.len() > 1 {
-        to[1..]
-            .iter()
-            // 既にカテゴリタグとして追加されていたら追加しない
-            .filter(|category| !category_names.contains(category))
-            .for_each(|category| {
-                category_tag.insert_after(&Category::new(category, None));
-            });
+    if to.len() == 1 {
+        return;
     }
+
+    to[1..]
+        .iter()
+        // 既にカテゴリタグとして追加されていたら追加しない
+        .filter(|category| !category_names.contains(category))
+        .for_each(|category| {
+            category_tag.insert_after(&Category::new(category, None));
+        });
 }
 
 /// `{{Template:リダイレクトの所属カテゴリ}}` の置換
