@@ -7,7 +7,7 @@ use crate::is_emergency_stopped;
 
 use super::Status;
 
-#[tracing::instrument]
+#[tracing::instrument(skip(bot))]
 pub async fn duplicate_category(
     bot: &Bot,
     source: &String,
