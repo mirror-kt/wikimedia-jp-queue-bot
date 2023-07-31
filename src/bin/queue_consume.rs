@@ -38,7 +38,7 @@ async fn main() -> anyhow::Result<()> {
         };
 
         match command.execute(&bot).await {
-            Ok(Status::Done { done_count }) => {
+            Ok(Status::Done { done_count }) if done_count > 0 => {
                 let Ok(page) = send_success_message(
                     queue_page.clone(),
                     queue,
@@ -65,6 +65,7 @@ async fn main() -> anyhow::Result<()> {
                 };
                 queue_page = page;
             }
+            _ => {}
         }
     }
 
