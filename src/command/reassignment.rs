@@ -79,7 +79,7 @@ pub async fn reassignment(
         let _ = page
             .save(
                 html,
-                &SaveOptions::summary(&format!("BOT: カテゴリの変更 ({})", &discussion_link)),
+                &SaveOptions::summary(&format!("BOT: カテゴリの変更 ([[{}]])", &discussion_link)),
             )
             .await;
         done_count += 1;
