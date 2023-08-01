@@ -2,7 +2,10 @@ use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
 use wikimedia_jp_queue_bot::command::{Command, Status};
 use wikimedia_jp_queue_bot::{
-    send_emergency_stopped_message, send_error_message, send_success_message, QUEUE_PAGE,
+    send_emergency_stopped_message,
+    send_error_message,
+    send_success_message,
+    QUEUE_PAGE,
 };
 
 #[tokio::main]

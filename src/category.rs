@@ -4,7 +4,9 @@ use tracing::warn;
 
 /// カテゴリタグ(`[[Category:Example]]`)の置換
 /// `to` が空の場合、`from` のカテゴリを削除する
-pub fn replace_category_tag(html: &Wikicode, from: &String, to: &[String]) {
+pub fn replace_category_tag(html: &Wikicode, from: impl AsRef<str>, to: impl AsRef<[String]>) {
+    let to = to.as_ref();
+
     let categories = html.filter_categories();
     let category_names = categories
         .iter()
@@ -13,7 +15,7 @@ pub fn replace_category_tag(html: &Wikicode, from: &String, to: &[String]) {
 
     let Some(category_tag) = categories
         .iter()
-        .find(|category| category.category() == *from)
+        .find(|category| category.category() == *from.as_ref())
     else {
         return;
     };
@@ -40,7 +42,14 @@ pub fn replace_category_tag(html: &Wikicode, from: &String, to: &[String]) {
 
 /// `{{Template:リダイレクトの所属カテゴリ}}` の置換
 /// `to` が空の場合、テンプレートを削除する
-pub fn replace_redirect_category_template(html: &Wikicode, from: &str, to: &[String]) {
+pub fn replace_redirect_category_template(
+    html: &Wikicode,
+    from: impl AsRef<str>,
+    to: impl AsRef<[String]>,
+) {
+    let from = from.as_ref();
+    let to = to.as_ref();
+
     let Ok(templates) = html.filter_templates() else {
         warn!("could not get templates");
         return;
@@ -174,15 +183,15 @@ fn replace_redirect_category_template_complex(template: &Template, from: &str, t
 
 #[cfg(test)]
 mod test {
-    use crate::test;
-
     use indoc::indoc;
     use mwbot::parsoid::prelude::*;
 
     use super::{
-        replace_category_tag, replace_redirect_category_template,
+        replace_category_tag,
+        replace_redirect_category_template,
         replace_redirect_category_template_complex,
     };
+    use crate::test;
 
     #[tokio::test]
     async fn test_replace_redirect_tag_one() {

@@ -1,7 +1,7 @@
 pub mod action;
 pub mod category;
 pub mod command;
-pub mod consume;
+pub mod generator;
 #[cfg(test)]
 pub mod test;
 

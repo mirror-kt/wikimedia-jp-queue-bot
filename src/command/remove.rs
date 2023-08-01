@@ -1,27 +1,25 @@
-use mwbot::generators::{CategoryMembers, Generator as _, Search};
+use std::fmt::{Debug, Display};
+
 use mwbot::{Bot, SaveOptions};
 use tracing::warn;
 
-use crate::category::{replace_category_tag, replace_redirect_category_template};
-use crate::is_emergency_stopped;
-
 use super::Status;
+use crate::category::{replace_category_tag, replace_redirect_category_template};
+use crate::generator::list_category_members;
+use crate::is_emergency_stopped;
 
 #[tracing::instrument(skip(bot))]
 pub async fn remove_category(
     bot: &Bot,
-    category: &String,
-    discussion_link: &str,
+    category: impl AsRef<str> + Debug + Display,
+    discussion_link: impl AsRef<str> + Debug + Display,
 ) -> anyhow::Result<Status> {
-    let mut search = Search::new(format!(r#"insource:"{}""#, category))
-        .namespace(vec![
-            0,  // 標準名前空間
-            14, // Category名前空間
-        ])
-        .generate(bot);
+    let discussion_link = discussion_link.as_ref();
+
+    let mut category_members = list_category_members(bot, category.as_ref(), true, true);
 
     let mut done_count = 0;
-    while let Some(page) = search.recv().await {
+    while let Some(page) = category_members.recv().await {
         if is_emergency_stopped(bot).await {
             return Ok(Status::EmergencyStopped);
         }
@@ -36,8 +34,8 @@ pub async fn remove_category(
             continue;
         };
 
-        replace_category_tag(&html, category, &[]);
-        replace_redirect_category_template(&html, category, &[]);
+        replace_category_tag(&html, category.as_ref(), &[]);
+        replace_redirect_category_template(&html, category.as_ref(), &[]);
 
         let _ = page
             .save(
