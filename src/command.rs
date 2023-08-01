@@ -2,6 +2,8 @@ pub mod duplicate;
 pub mod reassignment;
 pub mod remove;
 
+use std::cell::RefCell;
+
 use anyhow::anyhow;
 use if_chain::if_chain;
 use mwbot::parsoid::prelude::*;
@@ -82,6 +84,48 @@ impl Command {
 
         let discussion_link = Self::get_section_discussion(section).await?;
 
+        Self::try_parse_reassignment_all_command(bot_prefix, bot_suffix, &nodes, &discussion_link)
+            .or_else(|| {
+                Self::try_parse_reassignment_article_command(
+                    bot_prefix,
+                    bot_suffix,
+                    &nodes,
+                    &discussion_link,
+                )
+            })
+            .or_else(|| {
+                Self::try_parse_reassignment_category_command(
+                    bot_prefix,
+                    bot_suffix,
+                    &nodes,
+                    &discussion_link,
+                )
+            })
+            .or_else(|| {
+                Self::try_parse_remove_category_command(
+                    bot_prefix,
+                    bot_suffix,
+                    &nodes,
+                    &discussion_link,
+                )
+            })
+            .or_else(|| {
+                Self::try_parse_duplicate_category_command(
+                    bot_prefix,
+                    bot_suffix,
+                    &nodes,
+                    &discussion_link,
+                )
+            })
+            .ok_or_else(Self::invalid_command)
+    }
+
+    fn try_parse_reassignment_all_command(
+        bot_prefix: &RefCell<String>,
+        bot_suffix: &RefCell<String>,
+        nodes: &[Wikinode],
+        discussion_link: &String,
+    ) -> Option<Self> {
         if_chain! {
             if bot_prefix.borrow().trim() == "Bot:";
             if bot_suffix.borrow().trim() == "へ";
@@ -92,10 +136,19 @@ impl Command {
             if to.iter().all(|x| x.starts_with("Category:"));
 
             then {
-                return Ok(Self::ReassignmentAll { from, to, discussion_link });
+                return Some(Self::ReassignmentAll { from, to, discussion_link: discussion_link.to_owned() });
             }
         }
 
+        None
+    }
+
+    fn try_parse_reassignment_article_command(
+        bot_prefix: &RefCell<String>,
+        bot_suffix: &RefCell<String>,
+        nodes: &[Wikinode],
+        discussion_link: &String,
+    ) -> Option<Self> {
         if_chain! {
             if bot_prefix.borrow().trim() == "Bot: (記事)";
             if bot_suffix.borrow().trim() == "へ";
@@ -106,10 +159,19 @@ impl Command {
             if to.iter().all(|x| x.starts_with("Category:"));
 
             then {
-                return Ok(Self::ReassignmentArticle { from, to, discussion_link });
+                return Some(Self::ReassignmentArticle { from, to, discussion_link: discussion_link.to_owned() });
             }
         }
 
+        None
+    }
+
+    fn try_parse_reassignment_category_command(
+        bot_prefix: &RefCell<String>,
+        bot_suffix: &RefCell<String>,
+        nodes: &[Wikinode],
+        discussion_link: &String,
+    ) -> Option<Self> {
         if_chain! {
             if bot_prefix.borrow().trim() == "Bot: (カテゴリ)";
             if bot_suffix.borrow().trim() == "へ";
@@ -120,10 +182,19 @@ impl Command {
             if to.iter().all(|x| x.starts_with("Category:"));
 
             then {
-                return Ok(Self::ReassignmentCategory { from, to, discussion_link });
+                return Some(Self::ReassignmentCategory { from, to, discussion_link: discussion_link.to_owned() });
             }
         }
 
+        None
+    }
+
+    fn try_parse_remove_category_command(
+        bot_prefix: &RefCell<String>,
+        bot_suffix: &RefCell<String>,
+        nodes: &[Wikinode],
+        discussion_link: &String,
+    ) -> Option<Self> {
         if_chain! {
             if bot_prefix.borrow().trim() == "Bot:";
             if bot_suffix.borrow().trim() == "を除去";
@@ -134,10 +205,19 @@ impl Command {
             if category.starts_with("Category:");
 
             then {
-                return Ok(Self::RemoveCategory { category, discussion_link });
+                return Some(Self::RemoveCategory { category, discussion_link: discussion_link.to_owned() });
             }
         }
 
+        None
+    }
+
+    fn try_parse_duplicate_category_command(
+        bot_prefix: &RefCell<String>,
+        bot_suffix: &RefCell<String>,
+        nodes: &[Wikinode],
+        discussion_link: &String,
+    ) -> Option<Self> {
         if_chain! {
             if bot_prefix.borrow().trim() == "Bot:";
             if bot_suffix.borrow().trim() == "に複製";
@@ -147,11 +227,11 @@ impl Command {
             if dest[0].starts_with("Category:");
 
             then {
-                return Ok(Self::DuplicateCategory { source, dest: dest[0].clone(), discussion_link });
+                return Some(Self::DuplicateCategory { source, dest: dest[0].clone(), discussion_link: discussion_link.to_owned() });
             }
         }
 
-        Err(Self::invalid_command())
+        None
     }
 
     // 〇〇を〇〇((と〇〇)?)+へ をパースする
