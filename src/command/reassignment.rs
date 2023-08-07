@@ -40,8 +40,7 @@ pub async fn reassignment<'to>(
                 let _ = to_page.save(
                     html.clone(),
                     &SaveOptions::summary(&format!(
-                        "BOT: https://ja.wikipedia.org/w/index.php?title={}&oldid={} から複製 ({})",
-                        from_page.title(),
+                        "BOT: [[特別:転送/revision/{}]] から複製 ({})",
                         revision_id,
                         discussion_link,
                     ))
@@ -80,7 +79,15 @@ pub async fn reassignment<'to>(
         let _ = page
             .save(
                 html,
-                &SaveOptions::summary(&format!("BOT: カテゴリの変更 ([[{}]])", &discussion_link)),
+                &SaveOptions::summary(&format!(
+                    "BOT: カテゴリ [[:{}]]から{}へ変更 ([[{}]])",
+                    &from,
+                    &to.iter()
+                        .map(|cat| format!("[[:{}]]", cat))
+                        .collect::<Vec<_>>()
+                        .join(","),
+                    &discussion_link
+                )),
             )
             .await;
         done_count += 1;
