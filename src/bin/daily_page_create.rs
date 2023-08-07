@@ -30,7 +30,7 @@ async fn main() -> anyhow::Result<()> {
     let page_content = formatdoc! {r#"
         <noinclude>{{{{プロジェクト:カテゴリ関連/議論/見出し|年={year}|月={month}|日={day}}}}}
 
-        = [[{page_name}|カテゴリ]] =
+        == [[{page_name}|カテゴリ]] ==
         </noinclude><includeonly>= {month}月{day}日 =</includeonly>
         <!-- 新規の議論は一番下に記入してください。 -->
     "#};
