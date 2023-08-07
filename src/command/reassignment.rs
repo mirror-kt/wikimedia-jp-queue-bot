@@ -27,27 +27,27 @@ pub async fn reassignment<'to>(
     if !to_page.exists().await? {
         move_page(bot, &from, &to[0], format!("BOT: {}", &discussion_link)).await?;
     }
-    if_chain! {
-        if let Ok(from_page) = bot.page(from);
-        if let Ok(html) = from_page.html().await;
-        if let Some(revision_id) = html.revision_id();
+    // if_chain! {
+    //     if let Ok(from_page) = bot.page(from);
+    //     if let Ok(html) = from_page.html().await;
+    //     if let Some(revision_id) = html.revision_id();
 
-        then {
-            for to_page in to[1..].iter().map(|to| bot.page(to)).filter_map(|to_page| to_page.ok()) {
-                if to_page.exists().await.unwrap_or(true) {
-                    continue
-                }
-                let _ = to_page.save(
-                    html.clone(),
-                    &SaveOptions::summary(&format!(
-                        "BOT: [[特別:転送/revision/{}]] から複製 ({})",
-                        revision_id,
-                        discussion_link,
-                    ))
-                ).await;
-            }
-        }
-    }
+    //     then {
+    //         for to_page in to[1..].iter().map(|to| bot.page(to)).filter_map(|to_page| to_page.ok()) {
+    //             if to_page.exists().await.unwrap_or(true) {
+    //                 continue
+    //             }
+    //             let _ = to_page.save(
+    //                 html.clone(),
+    //                 &SaveOptions::summary(&format!(
+    //                     "BOT: [[特別:転送/revision/{}]] から複製 ({})",
+    //                     revision_id,
+    //                     discussion_link,
+    //                 ))
+    //             ).await;
+    //         }
+    //     }
+    // }
 
     let mut category_members = list_category_members(bot, from, include_article, include_category);
 
