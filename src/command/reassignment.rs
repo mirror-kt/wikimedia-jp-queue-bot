@@ -4,7 +4,6 @@ use mwbot::{Bot, SaveOptions};
 use tracing::warn;
 
 use super::Status;
-use crate::action::move_page;
 use crate::category::{replace_category_tag, replace_redirect_category_template};
 use crate::generator::list_category_members;
 use crate::is_emergency_stopped;
@@ -22,10 +21,10 @@ pub async fn reassignment<'to>(
     let to = to.as_ref();
     let discussion_link = discussion_link.as_ref();
 
-    let to_page = bot.page(&to[0])?;
-    if !to_page.exists().await? {
-        move_page(bot, &from, &to[0], format!("BOT: {}", &discussion_link)).await?;
-    }
+    // let to_page = bot.page(&to[0])?;
+    // if !to_page.exists().await? {
+    //     move_page(bot, &from, &to[0], format!("BOT: {}", &discussion_link)).await?;
+    // }
     // if_chain! {
     //     if let Ok(from_page) = bot.page(from);
     //     if let Ok(html) = from_page.html().await;
