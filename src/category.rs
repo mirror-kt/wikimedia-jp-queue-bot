@@ -26,7 +26,6 @@ pub fn replace_category_tag(html: &Wikicode, from: impl AsRef<str>, to: impl AsR
     }
 
     category_tag.set_category(&to[0]);
-    category_tag.set_sort_key(None);
     if to.len() == 1 {
         return;
     }
