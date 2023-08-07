@@ -22,6 +22,7 @@ async fn main() -> anyhow::Result<()> {
         .iter()
         .filter(|section| !section.is_pseudo_section())
         .filter(|section| is_prefixed_as_bot(section))
+        .filter(|section| !is_done(section))
         .collect::<Vec<_>>();
 
     for queue in queues {
@@ -84,4 +85,16 @@ fn is_prefixed_as_bot(section: &Section) -> bool {
     } else {
         false
     }
+}
+
+/// そのキューは既に実行済み({{BOTREQ|完了}}が貼られている)か
+fn is_done(section: &Section) -> bool {
+    let children = section.inclusive_descendants();
+    let mut templates = children
+        .flat_map(|child| child.filter_templates())
+        .flatten();
+
+    templates.any(|template| {
+        template.name() == "Template:BOTREQ" && template.param("1") == Some("完了".to_string())
+    })
 }

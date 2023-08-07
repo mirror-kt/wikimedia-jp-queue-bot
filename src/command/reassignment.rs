@@ -1,6 +1,5 @@
 use std::fmt::{Debug, Display};
 
-use if_chain::if_chain;
 use mwbot::{Bot, SaveOptions};
 use tracing::warn;
 
