@@ -46,7 +46,7 @@ pub async fn duplicate_category<'source, 'dest>(
             .save(
                 html,
                 &SaveOptions::summary(&format!(
-                    "BOT: {} カテゴリを {} カテゴリに複製 ([[{}]])",
+                    "BOT: カテゴリ [[:{}]]を [[:{}]]に複製 ([[{}|議論場所]])",
                     &source, &dest, discussion_link
                 )),
             )

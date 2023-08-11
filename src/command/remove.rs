@@ -41,7 +41,7 @@ pub async fn remove_category(
             .save(
                 html,
                 &SaveOptions::summary(&format!(
-                    "BOT: {} カテゴリの削除 ([[{}]])",
+                    "BOT: カテゴリ [[:{}]]の削除 ([[{}|議論場所]])",
                     category, discussion_link
                 )),
             )

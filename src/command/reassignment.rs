@@ -78,7 +78,7 @@ pub async fn reassignment<'to>(
             .save(
                 html,
                 &SaveOptions::summary(&format!(
-                    "BOT: カテゴリ [[:{}]]から{}へ変更 ([[{}]])",
+                    "BOT: カテゴリ [[:{}]]から{}へ変更 ([[{}|議論場所]])",
                     &from,
                     &to.iter()
                         .map(|cat| format!("[[:{}]]", cat))
