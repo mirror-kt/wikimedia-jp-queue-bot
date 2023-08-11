@@ -29,61 +29,66 @@ pub fn list_category_members<'category>(
 
     let seen = Arc::new(Mutex::new(HashSet::<String>::new()));
 
-    let local_bot = bot.clone();
-    let local_category = category.clone();
-    let local_namespaces = namespaces.clone();
-    let local_tx = tx.clone();
-    let local_seen = Arc::clone(&seen);
-    tokio::spawn(async move {
-        let mut category_members = CategoryMembers::new(local_category)
-            .namespace(local_namespaces)
-            .generate(&local_bot);
-        while let Some(member) = category_members.recv().await {
-            {
-                let mut seen = local_seen.lock().unwrap();
-                if let Ok(member) = &member {
-                    if seen.contains(member.title()) {
-                        continue;
-                    }
+    {
+        let bot = bot.clone();
+        let category = category.clone();
+        let namespaces = namespaces.clone();
+        let tx = tx.clone();
+        let seen = Arc::clone(&seen);
 
-                    seen.insert(member.title().to_string());
+        tokio::spawn(async move {
+            let mut category_members = CategoryMembers::new(category)
+                .namespace(namespaces)
+                .generate(&bot);
+            while let Some(member) = category_members.recv().await {
+                {
+                    let mut seen = seen.lock().unwrap();
+                    if let Ok(member) = &member {
+                        if seen.contains(member.title()) {
+                            continue;
+                        }
+
+                        seen.insert(member.title().to_string());
+                    }
+                }
+
+                if tx.send(member).await.is_err() {
+                    // Receiver hung up, just abort
+                    return;
                 }
             }
+        });
+    }
 
-            if local_tx.send(member).await.is_err() {
-                // Receiver hung up, just abort
-                return;
-            }
-        }
-    });
+    {
+        let bot = bot.clone();
+        let category = category.clone();
+        let namespaces = namespaces.clone();
+        let tx = tx.clone();
+        let seen = Arc::clone(&seen);
+        tokio::spawn(async move {
+            let mut search = Search::new(format!(r#"insource:"{}""#, category))
+                .namespace(namespaces)
+                .generate(&bot);
+            while let Some(member) = search.recv().await {
+                {
+                    let mut seen = seen.lock().unwrap();
+                    if let Ok(member) = &member {
+                        if seen.contains(member.title()) {
+                            continue;
+                        }
 
-    let local_bot = bot.clone();
-    let local_category = category.clone();
-    let local_namespaces = namespaces.clone();
-    let local_tx = tx.clone();
-    let local_seen = Arc::clone(&seen);
-    tokio::spawn(async move {
-        let mut search = Search::new(format!(r#"insource:"{}""#, local_category))
-            .namespace(local_namespaces)
-            .generate(&local_bot);
-        while let Some(member) = search.recv().await {
-            {
-                let mut seen = local_seen.lock().unwrap();
-                if let Ok(member) = &member {
-                    if seen.contains(member.title()) {
-                        continue;
+                        seen.insert(member.title().to_string());
                     }
+                }
 
-                    seen.insert(member.title().to_string());
+                if tx.send(member).await.is_err() {
+                    // Receiver hung up, just abort
+                    return;
                 }
             }
-
-            if local_tx.send(member).await.is_err() {
-                // Receiver hung up, just abort
-                return;
-            }
-        }
-    });
+        });
+    }
 
     rx
 }
