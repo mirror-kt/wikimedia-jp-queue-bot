@@ -1,5 +1,7 @@
 use std::fmt::{Debug, Display};
 
+use indexmap19::indexmap;
+use mwbot::parsoid::prelude::*;
 use mwbot::{Bot, SaveOptions};
 use tracing::warn;
 
@@ -91,23 +93,26 @@ pub async fn reassignment<'to>(
         done_count += 1;
     }
 
-    // // カテゴリに所属するページがなくなった場合、即時削除を要請する
-    // // TODO: 即時削除の方針の改定までコメントアウト
-    // let mut category_members = CategoryMembers::new(from.to_string()).generate(bot);
-    // if category_members.recv().await.is_none() {
-    //     let Ok(from_page) = bot.page(from) else {
-    //         warn!("Error while getting page: {:?}", from);
-    //         return Ok(Status::Done { done_count });
-    //     };
-    //     if let Err(err) = from_page
-    //         .save(
-    //             format!("{{即時削除|カテゴリ6|{}}}", discussion_link),
-    //             &SaveOptions::summary(&format!("BOT: 即時削除 ({})", discussion_link)),
-    //         )
-    //         .await
-    //     {
-    //         warn!("Error while saving page: {:?}", err);
-    //     };
-    // }
+    let mut category_members = list_category_members(bot, from, true, true);
+    if category_members.recv().await.is_none() {
+        let Ok(from_page) = bot.page(from) else {
+            warn!("Error while getting page: {:?}", from);
+            return Ok(Status::Done { done_count });
+        };
+        let content = Wikicode::new("");
+        content.insert_after(&Template::new(
+            "即時削除",
+            &indexmap! {
+                "1".to_string() => "カテゴリ6".to_string(),
+                "2".to_string() => format!("[[{}]]", discussion_link),
+            },
+        )?);
+        if let Err(err) = from_page
+            .save(content, &SaveOptions::summary("BOT: 即時削除 (カテゴリ6)"))
+            .await
+        {
+            warn!("Error while saving page: {:?}", err);
+        };
+    }
     Ok(Status::Done { done_count })
 }
