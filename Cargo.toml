@@ -14,7 +14,7 @@ name = "queue_consume"
 path = "src/bin/queue_consume.rs"
 
 [dependencies]
-anyhow = "1.0.73"
+anyhow = "1.0.74"
 chrono = { version = "0.4.26", default-features = false, features = [
     "std",
     "clock",
