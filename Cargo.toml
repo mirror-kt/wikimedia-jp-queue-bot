@@ -26,7 +26,7 @@ indoc = "2.0.3"
 kuchiki = "0.8.1"
 mwbot = "0.5.3"
 serde = { version = "1.0.183", features = ["derive"] }
-tokio = { version = "1.31.0", features = [
+tokio = { version = "1.32.0", features = [
     "rt",
     "rt-multi-thread",
     "macros",
