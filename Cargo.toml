@@ -25,7 +25,7 @@ indexmap19 = { version = "1.9.3", package = "indexmap" }
 indoc = "2.0.3"
 kuchiki = "0.8.1"
 mwbot = "0.5.3"
-serde = { version = "1.0.183", features = ["derive"] }
+serde = { version = "1.0.185", features = ["derive"] }
 tokio = { version = "1.32.0", features = [
     "rt",
     "rt-multi-thread",
