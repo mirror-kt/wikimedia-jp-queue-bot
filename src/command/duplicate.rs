@@ -3,15 +3,20 @@ use std::fmt::Debug;
 
 use mwbot::{Bot, SaveOptions};
 use tracing::warn;
+use ulid::Ulid;
 
 use super::Status;
 use crate::category::{replace_category_tag, replace_redirect_category_template};
+use crate::config::QueueBotConfig;
+use crate::db::{store_operation, OperationType};
 use crate::generator::list_category_members;
 use crate::is_emergency_stopped;
 
-#[tracing::instrument(skip(bot))]
+#[tracing::instrument(skip(bot, config))]
 pub async fn duplicate_category<'source, 'dest>(
     bot: &Bot,
+    config: &QueueBotConfig,
+    id: &Ulid,
     source: impl Into<Cow<'source, str>> + Debug,
     dest: impl Into<Cow<'dest, str>> + Debug,
     discussion_link: impl AsRef<str> + Debug,
@@ -42,16 +47,29 @@ pub async fn duplicate_category<'source, 'dest>(
         replace_category_tag(&html, &source, to);
         replace_redirect_category_template(&html, &source, to);
 
-        let _ = page
+        let (_, res) = page
             .save(
                 html,
                 &SaveOptions::summary(&format!(
-                    "BOT: カテゴリ [[:{}]]を [[:{}]]に複製 ([[{}|議論場所]])",
-                    &source, &dest, discussion_link
+                    "BOT: [[:{}]]を [[:{}]]に複製 ([[{}|議論場所]]) (ID: {})",
+                    &source, &dest, discussion_link, id
                 )),
             )
-            .await;
+            .await?;
+
+        store_operation(
+            &config.mysql,
+            id,
+            OperationType::Duplicate,
+            res.pageid,
+            res.newrevid,
+        )
+        .await?;
+
         done_count += 1;
     }
-    Ok(Status::Done { done_count })
+    Ok(Status::Done {
+        id: *id,
+        done_count,
+    })
 }

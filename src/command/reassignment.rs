@@ -4,15 +4,21 @@ use indexmap19::indexmap;
 use mwbot::parsoid::prelude::*;
 use mwbot::{Bot, SaveOptions};
 use tracing::warn;
+use ulid::Ulid;
 
 use super::Status;
 use crate::category::{replace_category_tag, replace_redirect_category_template};
+use crate::config::QueueBotConfig;
+use crate::db::{store_operation, OperationType};
 use crate::generator::list_category_members;
 use crate::is_emergency_stopped;
 
-#[tracing::instrument(skip(bot))]
+#[tracing::instrument(skip(bot, config))]
+#[allow(clippy::too_many_arguments)]
 pub async fn reassignment<'to>(
     bot: &Bot,
+    config: &QueueBotConfig,
+    id: &Ulid,
     from: impl AsRef<str> + Debug + Display,
     to: impl AsRef<[String]> + Debug,
     discussion_link: impl AsRef<str> + Debug,
@@ -76,20 +82,31 @@ pub async fn reassignment<'to>(
         replace_category_tag(&html, from, to);
         replace_redirect_category_template(&html, from, to);
 
-        let _ = page
+        let (_, res) = page
             .save(
                 html,
                 &SaveOptions::summary(&format!(
-                    "BOT: カテゴリ [[:{}]]から{}へ変更 ([[{}|議論場所]])",
+                    "BOT: [[:{}]]から{}へ変更 ([[{}|議論場所]]) (ID: {})",
                     &from,
                     &to.iter()
                         .map(|cat| format!("[[:{}]]", cat))
                         .collect::<Vec<_>>()
                         .join(","),
-                    &discussion_link
+                    &discussion_link,
+                    id,
                 )),
             )
-            .await;
+            .await?;
+
+        store_operation(
+            &config.mysql,
+            id,
+            OperationType::Reassignment,
+            res.pageid,
+            res.newrevid,
+        )
+        .await?;
+
         done_count += 1;
     }
 
@@ -97,7 +114,10 @@ pub async fn reassignment<'to>(
     if category_members.recv().await.is_none() {
         let Ok(from_page) = bot.page(from) else {
             warn!("Error while getting page: {:?}", from);
-            return Ok(Status::Done { done_count });
+            return Ok(Status::Done {
+                id: *id,
+                done_count,
+            });
         };
         let content = Wikicode::new("");
         content.insert_after(&Template::new(
@@ -114,5 +134,8 @@ pub async fn reassignment<'to>(
             warn!("Error while saving page: {:?}", err);
         };
     }
-    Ok(Status::Done { done_count })
+    Ok(Status::Done {
+        id: *id,
+        done_count,
+    })
 }

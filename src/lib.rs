@@ -1,6 +1,8 @@
 pub mod action;
 pub mod category;
 pub mod command;
+pub mod config;
+pub mod db;
 pub mod generator;
 #[cfg(test)]
 pub mod test;
@@ -13,6 +15,7 @@ use mwbot::parsoid::prelude::*;
 use mwbot::parsoid::{Template, Wikicode};
 use mwbot::{Bot, Page, SaveOptions};
 use tracing::warn;
+use ulid::Ulid;
 
 pub const BOT_NAME: &str = "QueueBot";
 pub const QUEUE_PAGE: &str = "プロジェクト:カテゴリ関連/キュー";
@@ -71,6 +74,7 @@ pub async fn is_emergency_stopped(bot: &Bot) -> bool {
 pub async fn send_success_message(
     queue_page: Page,
     queue: &Section,
+    id: &Ulid,
     message: &String,
 ) -> anyhow::Result<Page> {
     let botreq_template = Template::new(
@@ -88,7 +92,7 @@ pub async fn send_success_message(
     let current_datetime = get_current_datetime()?;
 
     queue.append(&botreq_template);
-    queue.append(&format!("{} --", message).as_wikicode());
+    queue.append(&format!("(ID: {}) {} --", id, message).as_wikicode());
     queue.append(&sign_template);
     queue.append(&current_datetime);
 

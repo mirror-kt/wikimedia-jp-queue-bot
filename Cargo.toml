@@ -2,7 +2,6 @@
 name = "wikimedia_jp_queue_bot"
 version = "0.1.0"
 edition = "2021"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[bin]]
@@ -19,6 +18,7 @@ chrono = { version = "0.4.26", default-features = false, features = [
     "std",
     "clock",
 ] }
+config = { version = "0.13.3", default-features = false, features = ["toml"] }
 futures-util = "0.3.28"
 if_chain = "1.0.2"
 indexmap19 = { version = "1.9.3", package = "indexmap" }
@@ -26,11 +26,23 @@ indoc = "2.0.3"
 kuchiki = "0.8.1"
 mwbot = "0.5.3"
 serde = { version = "1.0.185", features = ["derive"] }
+serde_json = "1.0.105"
+sqlx = { version = "0.7.1", features = [
+    "tls-rustls",
+    "mysql",
+    "json",
+    "uuid",
+    "macros",
+    "runtime-tokio",
+] }
 tokio = { version = "1.32.0", features = [
     "rt",
     "rt-multi-thread",
     "macros",
     "signal",
 ] }
+tokio-retry = "0.3.0"
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"
+ulid = { version = "1.0.0", features = ["uuid"] }
+uuid = "1.4.1"

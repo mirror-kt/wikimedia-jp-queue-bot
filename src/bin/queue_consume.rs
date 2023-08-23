@@ -1,6 +1,7 @@
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
 use wikimedia_jp_queue_bot::command::{Command, Status};
+use wikimedia_jp_queue_bot::config::load_config;
 use wikimedia_jp_queue_bot::{
     send_emergency_stopped_message,
     send_error_message,
@@ -13,6 +14,7 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().init();
 
     let bot = Bot::from_default_config().await?;
+    let config = load_config()?;
 
     let mut queue_page = bot.page(QUEUE_PAGE)?;
     let queue_html = queue_page.html().await?.into_mutable();
@@ -41,11 +43,12 @@ async fn main() -> anyhow::Result<()> {
             }
         };
 
-        match command.execute(&bot).await {
-            Ok(Status::Done { done_count }) if done_count > 0 => {
+        match command.execute(&bot, &config).await {
+            Ok(Status::Done { id, done_count }) if done_count > 0 => {
                 let Ok(page) = send_success_message(
                     queue_page.clone(),
                     queue,
+                    &id,
                     &format!("{}件の操作を完了しました", done_count),
                 )
                 .await

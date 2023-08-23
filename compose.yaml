@@ -1,0 +1,10 @@
+services:
+  database:
+    image: mariadb:10.4.29
+    environment:
+      - MARIADB_USER=queuebot
+      - MARIADB_PASSWORD=password
+      - MARIADB_RANDOM_ROOT_PASSWORD=true
+      - MARIADB_DATABASE=s55507__queuebot_p
+    ports:
+      - "3306:3306"

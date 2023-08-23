@@ -1,18 +1,21 @@
 use std::fmt::{Debug, Display};
 
-use indexmap19::indexmap;
-use mwbot::parsoid::prelude::*;
 use mwbot::{Bot, SaveOptions};
 use tracing::warn;
+use ulid::Ulid;
 
 use super::Status;
 use crate::category::{replace_category_tag, replace_redirect_category_template};
+use crate::config::QueueBotConfig;
+use crate::db::store_operation;
 use crate::generator::list_category_members;
 use crate::is_emergency_stopped;
 
 #[tracing::instrument(skip(bot))]
 pub async fn remove_category(
     bot: &Bot,
+    config: &QueueBotConfig,
+    id: &Ulid,
     category: impl AsRef<str> + Debug + Display,
     discussion_link: impl AsRef<str> + Debug + Display,
 ) -> anyhow::Result<Status> {
@@ -40,17 +43,30 @@ pub async fn remove_category(
         replace_category_tag(&html, category, &[]);
         replace_redirect_category_template(&html, category, &[]);
 
-        let _ = page
+        let (_, res) = page
             .save(
                 html,
                 &SaveOptions::summary(&format!(
-                    "BOT: カテゴリ [[:{}]]の削除 ([[{}|議論場所]])",
-                    category, discussion_link
+                    "BOT: [[:{}]]の削除 ([[{}|議論場所]]) (ID: {})",
+                    category, discussion_link, id
                 )),
             )
-            .await;
+            .await?;
+
+        store_operation(
+            &config.mysql,
+            id,
+            crate::db::OperationType::Remove,
+            res.pageid,
+            res.newrevid,
+        )
+        .await?;
+
         done_count += 1;
     }
 
-    Ok(Status::Done { done_count })
+    Ok(Status::Done {
+        id: *id,
+        done_count,
+    })
 }

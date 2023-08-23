@@ -4,16 +4,20 @@ pub mod remove;
 
 use std::cell::RefCell;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context as _};
 use if_chain::if_chain;
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
+use serde::{Deserialize, Serialize};
+use ulid::Ulid;
 
 use self::duplicate::duplicate_category;
 use self::reassignment::reassignment;
 use self::remove::remove_category;
+use crate::config::{MySqlConfig, QueueBotConfig};
+use crate::db::{store_command, CommandType};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum Command {
     /// `from` に直属するすべてのページ(記事とカテゴリ)が `to` に再配属される.
     ///
@@ -302,39 +306,56 @@ impl Command {
         anyhow!("議論が行われた場所を示すリンクが必要です.")
     }
 
-    pub async fn execute(&self, bot: &Bot) -> anyhow::Result<Status> {
+    pub async fn execute(&self, bot: &Bot, config: &QueueBotConfig) -> anyhow::Result<Status> {
+        let id = Ulid::new();
+        self.insert_db(&id, &config.mysql).await?;
+
         match self {
             Self::ReassignmentAll {
                 from,
                 to,
                 discussion_link,
-            } => reassignment(bot, from, to, discussion_link, true, true).await,
+            } => reassignment(bot, config, &id, from, to, discussion_link, true, true).await,
             Self::ReassignmentArticle {
                 from,
                 to,
                 discussion_link,
-            } => reassignment(bot, from, to, discussion_link, true, false).await,
+            } => reassignment(bot, config, &id, from, to, discussion_link, true, false).await,
             Self::ReassignmentCategory {
                 from,
                 to,
                 discussion_link,
-            } => reassignment(bot, from, to, discussion_link, false, true).await,
+            } => reassignment(bot, config, &id, from, to, discussion_link, false, true).await,
             Self::RemoveCategory {
                 category,
                 discussion_link,
-            } => remove_category(bot, category, discussion_link).await,
+            } => remove_category(bot, config, &id, category, discussion_link).await,
             Self::DuplicateCategory {
                 source,
                 dest,
                 discussion_link,
-            } => duplicate_category(bot, source, dest, discussion_link).await,
+            } => duplicate_category(bot, config, &id, source, dest, discussion_link).await,
         }
+    }
+
+    async fn insert_db(&self, id: &Ulid, config: &MySqlConfig) -> anyhow::Result<()> {
+        let params = serde_json::to_value(self).context("could not serialize command")?;
+
+        let command_type = match *self {
+            Self::ReassignmentAll { .. } => CommandType::ReassignmentAll,
+            Self::ReassignmentArticle { .. } => CommandType::ReassignmentArticle,
+            Self::ReassignmentCategory { .. } => CommandType::ReassignmentCategory,
+            Self::RemoveCategory { .. } => CommandType::RemoveCategory,
+            Self::DuplicateCategory { .. } => CommandType::DuplicateCategory,
+        };
+
+        store_command(config, id, command_type, params).await
     }
 }
 
 pub enum Status {
     EmergencyStopped,
-    Done { done_count: u32 },
+    Done { id: Ulid, done_count: u32 },
 }
 
 #[cfg(test)]
