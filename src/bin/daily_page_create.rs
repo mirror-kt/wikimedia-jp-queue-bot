@@ -33,7 +33,7 @@ async fn main() -> anyhow::Result<()> {
         __NEWSECTIONLINK__
 
         == [[{page_name}|カテゴリ]] ==
-        </noinclude><includeonly>== {month}月{day}日 ==</includeonly>
+        </noinclude><includeonly>== [[{page_name}|{month}月{day}日]] ==</includeonly>
         <!-- 新規の議論は一番下に記入してください。 -->
     "#};
 
