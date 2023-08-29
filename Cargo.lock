@@ -2970,6 +2970,7 @@ dependencies = [
  "indexmap 1.9.3",
  "indoc",
  "kuchiki",
+ "mwapi_responses",
  "mwbot",
  "serde",
  "serde_json",

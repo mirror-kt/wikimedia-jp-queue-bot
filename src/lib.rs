@@ -7,13 +7,16 @@ pub mod generator;
 #[cfg(test)]
 pub mod test;
 
-use anyhow::Context as _;
-use chrono::{FixedOffset, Utc};
-use indexmap19::indexmap;
+use std::collections::HashMap;
+
+use chrono::Utc;
+use command::OperationStatus;
+use indoc::formatdoc;
 use kuchiki::NodeRef;
 use mwbot::parsoid::prelude::*;
-use mwbot::parsoid::{Template, Wikicode};
 use mwbot::{Bot, Page, SaveOptions};
+use tokio_retry::strategy::{jitter, ExponentialBackoff};
+use tokio_retry::Retry;
 use tracing::warn;
 use ulid::Ulid;
 
@@ -71,112 +74,71 @@ pub async fn is_emergency_stopped(bot: &Bot) -> bool {
     emergency_stopped
 }
 
-pub async fn send_success_message(
-    queue_page: Page,
-    queue: &Section,
-    id: &Ulid,
-    message: &String,
-) -> anyhow::Result<Page> {
-    let botreq_template = Template::new(
-        "BOTREQ",
-        &indexmap! {
-            "1".to_string() => "完了".to_string(),
-        },
-    )?;
-    let sign_template = Template::new(
-        "Eliminator",
-        &indexmap! {
-            "1".to_string() => BOT_NAME.to_string(),
-        },
-    )?;
-    let current_datetime = get_current_datetime()?;
-
-    queue.append(&botreq_template);
-    queue.append(&format!("(ID: {}) {} --", id, message).as_wikicode());
-    queue.append(&sign_template);
-    queue.append(&current_datetime);
-
-    Ok(queue_page
-        .save(
-            queue.children().collect::<Vec<_>>().as_wikicode(),
-            &SaveOptions::summary(message).section(&queue.section_id().to_string()),
-        )
-        .await?
-        .0)
+const SIGUNATURE: &str = r#"[[User:QueueBot|QueueBot]] <small><span class="plainlinks">([[Special:Contributions/QueueBot|投稿]]/[{{fullurl:Special:Log/delete|user=QueueBot}} 削除]/[{{fullurl:Special:Log/move|user=QueueBot}} 移動])</span></small>"#;
+fn get_sigunature() -> String {
+    let current_datetime = Utc::now();
+    format!(
+        "{SIGUNATURE} {} (UTC)",
+        current_datetime.format("%Y年%m月%d日 %H:%M")
+    )
 }
 
-pub async fn send_error_message(
-    queue_page: Page,
-    queue: &Section,
-    message: &String,
+pub async fn send_command_message(
+    id: Option<&Ulid>,
+    bot: &Bot,
+    page: Page,
+    section: &Section,
+    result: &str,
+    message: &str,
+    statuses: Option<HashMap<String, OperationStatus>>,
 ) -> anyhow::Result<Page> {
-    let botreq_template = Template::new(
-        "BOTREQ",
-        &indexmap! {
-            "1".to_string() => "不受理".to_string(),
-        },
-    )?;
-    let sign_template = Template::new(
-        "Eliminator",
-        &indexmap! {
-            "1".to_string() => BOT_NAME.to_string(),
-        },
-    )?;
-    let current_datetime = get_current_datetime()?;
+    let errors = if let Some(statuses) = statuses {
+        statuses
+            .iter()
+            .filter_map(|(page, status)| {
+                if let OperationStatus::Error(err) = status {
+                    Some((page, err))
+                } else {
+                    None
+                }
+            })
+            .map(|(page, error)| format!("# {page} - {error}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else {
+        "".to_string()
+    };
 
-    queue.append(&botreq_template);
-    queue.append(&format!("{} --", message).as_wikicode());
-    queue.append(&sign_template);
-    queue.append(&current_datetime);
+    let id = if let Some(id) = id {
+        format!("(ID: {id})")
+    } else {
+        "".to_string()
+    };
 
-    Ok(queue_page
-        .save(
-            queue.children().collect::<Vec<_>>().as_wikicode(),
-            &SaveOptions::summary(message).section(&queue.section_id().to_string()),
+    let message = formatdoc! {"
+        {{{{BOTREQ|{result}}}}}{id} - {message}.
+        {errors}
+        --{sigunature}
+        ",
+        sigunature = get_sigunature()
+    };
+
+    let before_wikicode = bot
+        .parsoid()
+        .transform_to_wikitext(&section.as_wikicode())
+        .await?;
+    let after_wikicode = before_wikicode + "\n" + &message;
+
+    let retry_strategy = ExponentialBackoff::from_millis(5).map(jitter).take(3);
+    let (page, _) = Retry::spawn(retry_strategy, || async {
+        let page = page.clone();
+        page.save(
+            after_wikicode.clone(),
+            &SaveOptions::summary(&format!("BOT: {message}")),
         )
-        .await?
-        .0)
-}
+        .await
+    })
+    .await?;
 
-pub async fn send_emergency_stopped_message(
-    queue_page: Page,
-    queue: &Section,
-) -> anyhow::Result<Page> {
-    let botreq_template = Template::new(
-        "BOTREQ",
-        &indexmap! {
-            "1".to_string() => "保留".to_string(),
-        },
-    )?;
-    let message = " 緊急停止が作動したためスキップされました. ";
-    let sign_template = Template::new(
-        "Eliminator",
-        &indexmap! {
-            "1".to_string() => BOT_NAME.to_string(),
-        },
-    )?;
-    let current_datetime = get_current_datetime()?;
-
-    queue.append(&botreq_template);
-    queue.append(&format!("{} --", message).as_wikicode());
-    queue.append(&sign_template);
-    queue.append(&current_datetime);
-
-    Ok(queue_page
-        .save(
-            queue.children().collect::<Vec<_>>().as_wikicode(),
-            &SaveOptions::summary(message).section(&queue.section_id().to_string()),
-        )
-        .await?
-        .0)
-}
-
-fn get_current_datetime() -> anyhow::Result<Wikicode> {
-    let current_datetime = Utc::now()
-        .with_timezone(&FixedOffset::east_opt(9 * 3600).context("could not parse JST offset")?);
-
-    Ok(current_datetime
-        .format("%Y年%m月%d日 %H:%M")
-        .to_string()
-        .as_wikicode())
+    Ok(page)
 }

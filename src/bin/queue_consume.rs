@@ -1,13 +1,9 @@
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
-use wikimedia_jp_queue_bot::command::{Command, Status};
+use tracing::warn;
+use wikimedia_jp_queue_bot::command::{Command, CommandStatus};
 use wikimedia_jp_queue_bot::config::load_config;
-use wikimedia_jp_queue_bot::{
-    send_emergency_stopped_message,
-    send_error_message,
-    send_success_message,
-    QUEUE_PAGE,
-};
+use wikimedia_jp_queue_bot::{send_command_message, QUEUE_PAGE};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -21,58 +17,110 @@ async fn main() -> anyhow::Result<()> {
 
     let sections = queue_html.iter_sections();
     let queues = sections
-        .iter()
+        .into_iter()
         .filter(|section| !section.is_pseudo_section())
-        .filter(|section| is_prefixed_as_bot(section))
+        .filter(is_prefixed_as_bot)
         .filter(|section| !is_done(section))
         .collect::<Vec<_>>();
 
     for queue in queues {
-        let command = Command::parse_command(queue).await;
+        let command = Command::parse_command(&queue).await;
 
         let command = match command {
             Ok(command) => command,
             Err(err) => {
-                let Ok(page) =
-                    send_error_message(queue_page.clone(), queue, &err.to_string()).await
-                else {
-                    continue;
-                };
-                queue_page = page;
+                warn!(?err, "parsing error occurred");
+                match send_command_message(
+                    None,
+                    &bot,
+                    queue_page.clone(),
+                    &queue,
+                    "中止",
+                    &err.to_string(),
+                    None,
+                )
+                .await
+                {
+                    Ok(page) => {
+                        queue_page = page;
+                    }
+                    Err(err) => {
+                        warn!(?err, "could not save command log");
+                    }
+                }
                 continue;
             }
         };
 
         match command.execute(&bot, &config).await {
-            Ok(Status::Done { id, done_count }) if done_count > 0 => {
-                let Ok(page) = send_success_message(
+            CommandStatus::Done { id, statuses } => {
+                match send_command_message(
+                    Some(&id),
+                    &bot,
                     queue_page.clone(),
-                    queue,
-                    &id,
-                    &format!("{}件の操作を完了しました", done_count),
+                    &queue,
+                    "完了",
+                    &format!("{}件の操作を完了しました", statuses.len()),
+                    Some(statuses),
                 )
                 .await
-                else {
-                    continue;
-                };
-                queue_page = page;
+                {
+                    Ok(page) => {
+                        queue_page = page;
+                    }
+                    Err(err) => {
+                        warn!(page = QUEUE_PAGE, ?err, "could not save command log");
+                        continue;
+                    }
+                }
             }
-            Ok(Status::EmergencyStopped) => {
-                let Ok(page) = send_emergency_stopped_message(queue_page.clone(), queue).await
-                else {
-                    continue;
-                };
-                queue_page = page;
+            CommandStatus::EmergencyStopped => {
+                match send_command_message(
+                    None,
+                    &bot,
+                    queue_page.clone(),
+                    &queue,
+                    "保留",
+                    "緊急停止しました",
+                    None,
+                )
+                .await
+                {
+                    Ok(page) => {
+                        queue_page = page;
+                    }
+                    Err(err) => {
+                        warn!(page = QUEUE_PAGE, ?err, "could not save command log");
+                        continue;
+                    }
+                }
+                continue;
             }
-            Err(err) => {
-                let Ok(page) =
-                    send_error_message(queue_page.clone(), queue, &err.to_string()).await
-                else {
-                    continue;
-                };
-                queue_page = page;
+            CommandStatus::Error {
+                id,
+                statuses,
+                message,
+            } => {
+                match send_command_message(
+                    Some(&id),
+                    &bot,
+                    queue_page.clone(),
+                    &queue,
+                    "中止",
+                    &message,
+                    Some(statuses),
+                )
+                .await
+                {
+                    Ok(page) => {
+                        queue_page = page;
+                    }
+                    Err(err) => {
+                        warn!(page = QUEUE_PAGE, ?err, "could not save command log");
+                        continue;
+                    }
+                }
             }
-            _ => {}
         }
     }
 

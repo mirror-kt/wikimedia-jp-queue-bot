@@ -1,12 +1,14 @@
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fmt::Debug;
 
 use mwbot::{Bot, SaveOptions};
 use tracing::warn;
 use ulid::Ulid;
 
-use super::Status;
+use super::CommandStatus;
 use crate::category::{replace_category_tag, replace_redirect_category_template};
+use crate::command::OperationStatus;
 use crate::config::QueueBotConfig;
 use crate::db::{store_operation, OperationType};
 use crate::generator::list_category_members;
@@ -20,7 +22,7 @@ pub async fn duplicate_category<'source, 'dest>(
     source: impl Into<Cow<'source, str>> + Debug,
     dest: impl Into<Cow<'dest, str>> + Debug,
     discussion_link: impl AsRef<str> + Debug,
-) -> anyhow::Result<Status> {
+) -> CommandStatus {
     let source: String = source.into().into_owned();
     let dest: String = dest.into().into_owned();
     let to = &[source.clone(), dest.clone()];
@@ -28,48 +30,65 @@ pub async fn duplicate_category<'source, 'dest>(
 
     let mut category_members = list_category_members(bot, &source, true, true);
 
-    let mut done_count = 0;
+    let mut statuses = HashMap::new();
     while let Some(page) = category_members.recv().await {
         if is_emergency_stopped(bot).await {
-            return Ok(Status::EmergencyStopped);
+            return CommandStatus::EmergencyStopped;
         }
 
         let Ok(page) = page else {
             warn!("Error while searching: {:?}", page);
             continue;
         };
-
         let Ok(html) = page.html().await.map(|html| html.into_mutable()) else {
             warn!("Error while getting html: {:?}", page);
             continue;
         };
+        let page_title = page.title().to_string();
 
         replace_category_tag(&html, &source, to);
         replace_redirect_category_template(&html, &source, to);
 
-        let (_, res) = page
-            .save(
-                html,
-                &SaveOptions::summary(&format!(
-                    "BOT: [[:{}]]を [[:{}]]に複製 ([[{}|議論場所]]) (ID: {})",
-                    &source, &dest, discussion_link, id
-                )),
-            )
-            .await?;
+        let (_, res) = {
+            let result = page
+                .save(
+                    html,
+                    &SaveOptions::summary(&format!(
+                        "BOT: [[:{}]]を [[:{}]]に複製 ([[{}|議論場所]]) (ID: {})",
+                        &source, &dest, discussion_link, id
+                    )),
+                )
+                .await;
+            if let Err(err) = result {
+                warn!(page = &page_title, "ページの保存に失敗しました: {}", err);
+                statuses.insert(
+                    page_title,
+                    OperationStatus::Error("ページの保存に失敗しました".to_string()),
+                );
+                continue;
+            }
 
-        store_operation(
+            result.unwrap() // SAFETY: Err(_) is covered
+        };
+
+        if let Err(err) = store_operation(
             &config.mysql,
             id,
             OperationType::Duplicate,
             res.pageid,
             res.newrevid,
         )
-        .await?;
-
-        done_count += 1;
+        .await
+        {
+            warn!("{}", err);
+            statuses.insert(
+                page_title,
+                OperationStatus::Error(
+                    "データベースへのオペレーション保存に失敗しました".to_string(),
+                ),
+            );
+            continue;
+        };
     }
-    Ok(Status::Done {
-        id: *id,
-        done_count,
-    })
+    CommandStatus::Done { id: *id, statuses }
 }

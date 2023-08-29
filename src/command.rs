@@ -3,12 +3,14 @@ pub mod reassignment;
 pub mod remove;
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 use anyhow::{anyhow, Context as _};
 use if_chain::if_chain;
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 use ulid::Ulid;
 
 use self::duplicate::duplicate_category;
@@ -306,9 +308,16 @@ impl Command {
         anyhow!("議論が行われた場所を示すリンクが必要です.")
     }
 
-    pub async fn execute(&self, bot: &Bot, config: &QueueBotConfig) -> anyhow::Result<Status> {
+    pub async fn execute(&self, bot: &Bot, config: &QueueBotConfig) -> CommandStatus {
         let id = Ulid::new();
-        self.insert_db(&id, &config.mysql).await?;
+        if let Err(err) = self.insert_db(&id, &config.mysql).await {
+            warn!("{}", err);
+            return CommandStatus::Error {
+                id,
+                statuses: HashMap::new(),
+                message: "データベースへのID保存に失敗しました".to_string(),
+            };
+        }
 
         match self {
             Self::ReassignmentAll {
@@ -353,9 +362,27 @@ impl Command {
     }
 }
 
-pub enum Status {
+pub enum CommandStatus {
     EmergencyStopped,
-    Done { id: Ulid, done_count: u32 },
+    Done {
+        id: Ulid,
+        statuses: HashMap<String, OperationStatus>,
+    },
+    /// Commandがエラーの場合
+    /// Operationがエラーの場合はOperationStatusで示す
+    Error {
+        id: Ulid,
+        /// <title, status>
+        statuses: HashMap<String, OperationStatus>,
+        message: String,
+    },
+}
+
+pub enum OperationStatus {
+    Reassignment,
+    Remove,
+    Duplicate,
+    Error(String),
 }
 
 #[cfg(test)]

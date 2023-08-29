@@ -1,13 +1,14 @@
+use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 
 use mwbot::{Bot, SaveOptions};
 use tracing::warn;
 use ulid::Ulid;
 
-use super::Status;
+use super::{CommandStatus, OperationStatus};
 use crate::category::{replace_category_tag, replace_redirect_category_template};
 use crate::config::QueueBotConfig;
-use crate::db::store_operation;
+use crate::db::{store_operation, OperationType};
 use crate::generator::list_category_members;
 use crate::is_emergency_stopped;
 
@@ -18,16 +19,16 @@ pub async fn remove_category(
     id: &Ulid,
     category: impl AsRef<str> + Debug + Display,
     discussion_link: impl AsRef<str> + Debug + Display,
-) -> anyhow::Result<Status> {
+) -> CommandStatus {
     let discussion_link = discussion_link.as_ref();
     let category = category.as_ref();
 
     let mut category_members = list_category_members(bot, category, true, true);
 
-    let mut done_count = 0;
+    let mut statuses = HashMap::new();
     while let Some(page) = category_members.recv().await {
         if is_emergency_stopped(bot).await {
-            return Ok(Status::EmergencyStopped);
+            return CommandStatus::EmergencyStopped;
         }
 
         let Ok(page) = page else {
@@ -39,34 +40,52 @@ pub async fn remove_category(
             warn!("Error while getting html: {:?}", page);
             continue;
         };
+        let page_title = page.title().to_string();
 
         replace_category_tag(&html, category, &[]);
         replace_redirect_category_template(&html, category, &[]);
 
-        let (_, res) = page
-            .save(
-                html,
-                &SaveOptions::summary(&format!(
-                    "BOT: [[:{}]]の削除 ([[{}|議論場所]]) (ID: {})",
-                    category, discussion_link, id
-                )),
-            )
-            .await?;
+        let (_, res) = {
+            let result = page
+                .save(
+                    html,
+                    &SaveOptions::summary(&format!(
+                        "BOT: [[:{}]]の削除 ([[{}|議論場所]]) (ID: {})",
+                        category, discussion_link, id
+                    )),
+                )
+                .await;
+            if let Err(err) = result {
+                warn!(page = &page_title, "ページの保存に失敗しました: {}", err);
+                statuses.insert(
+                    page_title,
+                    OperationStatus::Error("ページの保存に失敗しました".to_string()),
+                );
+                continue;
+            }
 
-        store_operation(
+            result.unwrap() // SAFETY: Err(_) is covered
+        };
+
+        if let Err(err) = store_operation(
             &config.mysql,
             id,
-            crate::db::OperationType::Remove,
+            OperationType::Remove,
             res.pageid,
             res.newrevid,
         )
-        .await?;
-
-        done_count += 1;
+        .await
+        {
+            warn!("{}", err);
+            statuses.insert(
+                page_title,
+                OperationStatus::Error(
+                    "データベースへのオペレーション保存に失敗しました".to_string(),
+                ),
+            );
+            continue;
+        };
     }
 
-    Ok(Status::Done {
-        id: *id,
-        done_count,
-    })
+    CommandStatus::Done { id: *id, statuses }
 }
