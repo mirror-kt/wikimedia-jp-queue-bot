@@ -8,7 +8,7 @@ pub fn load_config() -> anyhow::Result<QueueBotConfig> {
         .add_source(config::Environment::with_prefix("QUEUEBOT"))
         .build()?;
 
-    dbg!(config.try_deserialize().context("could not parse config"))
+    config.try_deserialize().context("could not parse config")
 }
 
 #[derive(Deserialize, Debug)]

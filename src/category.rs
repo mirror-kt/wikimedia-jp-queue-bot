@@ -53,11 +53,11 @@ pub fn replace_redirect_category_template(
         warn!("could not get templates");
         return;
     };
-    let redirect_category_templates = templates
-        .iter()
+    let templates = templates
+        .into_iter()
         .filter(|template| template.name() == "Template:リダイレクトの所属カテゴリ")
         .collect::<Vec<_>>();
-    if redirect_category_templates.is_empty() {
+    if templates.is_empty() {
         return;
     }
 
@@ -184,6 +184,7 @@ fn replace_redirect_category_template_complex(template: &Template, from: &str, t
 mod test {
     use indoc::indoc;
     use mwbot::parsoid::prelude::*;
+    use pretty_assertions::assert_eq;
 
     use super::{
         replace_category_tag,

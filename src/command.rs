@@ -362,6 +362,7 @@ impl Command {
     }
 }
 
+#[derive(Debug)]
 pub enum CommandStatus {
     EmergencyStopped,
     Done {
@@ -378,6 +379,7 @@ pub enum CommandStatus {
     },
 }
 
+#[derive(Debug)]
 pub enum OperationStatus {
     Reassignment,
     Remove,
