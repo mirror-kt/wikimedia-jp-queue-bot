@@ -134,7 +134,8 @@ pub async fn send_command_message(
         let page = page.clone();
         page.save(
             after_wikicode.clone(),
-            &SaveOptions::summary(&format!("BOT: {message}")),
+            &SaveOptions::summary(&format!("BOT: {message}"))
+                .section(&format!("{}", section.section_id())),
         )
         .await
     })
