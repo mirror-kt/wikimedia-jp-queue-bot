@@ -4,7 +4,7 @@ use std::fmt::{Debug, Display};
 use indexmap19::indexmap;
 use mwbot::parsoid::prelude::*;
 use mwbot::{Bot, SaveOptions};
-use tracing::warn;
+use tracing::{info, warn};
 use ulid::Ulid;
 
 use super::{CommandStatus, OperationStatus};
@@ -110,6 +110,9 @@ pub async fn reassignment<'to>(
                     OperationStatus::Error("ページの保存に失敗しました".to_string()),
                 );
                 continue;
+            } else {
+                statuses.insert(page_title.clone(), OperationStatus::Reassignment);
+                info!(page = &page_title, "Done");
             }
 
             result.unwrap() // SAFETY: Err(_) is covered

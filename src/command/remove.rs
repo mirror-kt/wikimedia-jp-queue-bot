@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 
 use mwbot::{Bot, SaveOptions};
-use tracing::warn;
+use tracing::{info, warn};
 use ulid::Ulid;
 
 use super::{CommandStatus, OperationStatus};
@@ -62,6 +62,9 @@ pub async fn remove_category(
                     OperationStatus::Error("ページの保存に失敗しました".to_string()),
                 );
                 continue;
+            } else {
+                info!(page = &page_title, "Done");
+                statuses.insert(page_title.clone(), OperationStatus::Remove);
             }
 
             result.unwrap() // SAFETY: Err(_) is covered

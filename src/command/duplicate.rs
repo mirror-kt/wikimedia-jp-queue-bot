@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use mwbot::{Bot, SaveOptions};
-use tracing::warn;
+use tracing::{warn, info};
 use ulid::Ulid;
 
 use super::CommandStatus;
@@ -66,6 +66,9 @@ pub async fn duplicate_category<'source, 'dest>(
                     OperationStatus::Error("ページの保存に失敗しました".to_string()),
                 );
                 continue;
+            } else {
+                statuses.insert(page_title.clone(), OperationStatus::Duplicate);
+                info!(page = &page_title, "Done");
             }
 
             result.unwrap() // SAFETY: Err(_) is covered
