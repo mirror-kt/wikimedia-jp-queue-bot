@@ -115,7 +115,7 @@ pub async fn send_command_message(
         "".to_string()
     };
 
-    let message = formatdoc! {"
+    let content = formatdoc! {"
         {{{{BOTREQ|{result}}}}}{id} - {message}.
         {errors}
         --{sigunature}
@@ -127,13 +127,18 @@ pub async fn send_command_message(
         .parsoid()
         .transform_to_wikitext(&section.as_wikicode())
         .await?;
-    let after_wikicode = before_wikicode + "\n" + &message;
+    let after_wikicode = before_wikicode + "\n" + &content;
+    let after_html = bot
+        .parsoid()
+        .transform_to_html(&after_wikicode)
+        .await?
+        .into_mutable();
 
     let retry_strategy = ExponentialBackoff::from_millis(5).map(jitter).take(3);
     let (page, _) = Retry::spawn(retry_strategy, || async {
         let page = page.clone();
         page.save(
-            after_wikicode.clone(),
+            after_html.children().collect::<Vec<_>>().as_wikicode(),
             &SaveOptions::summary(&format!("BOT: {message}"))
                 .section(&format!("{}", section.section_id())),
         )
