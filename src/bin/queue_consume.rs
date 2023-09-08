@@ -121,6 +121,9 @@ async fn main() -> anyhow::Result<()> {
                     }
                 }
             }
+            CommandStatus::Skipped => {
+                // do nothing
+            }
         }
     }
 

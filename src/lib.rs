@@ -6,11 +6,14 @@ pub mod db;
 pub mod generator;
 #[cfg(test)]
 pub mod test;
+pub mod util;
 
 use std::collections::HashMap;
+use std::fmt::Display;
 
 use chrono::Utc;
 use command::OperationStatus;
+use indexmap19::indexmap;
 use indoc::formatdoc;
 use kuchiki::NodeRef;
 use mwbot::parsoid::prelude::*;
@@ -19,6 +22,8 @@ use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
 use tracing::warn;
 use ulid::Ulid;
+
+use crate::util::ListExt as _;
 
 pub const BOT_NAME: &str = "QueueBot";
 pub const QUEUE_PAGE: &str = "プロジェクト:カテゴリ関連/キュー";
@@ -88,10 +93,18 @@ pub async fn send_command_message(
     bot: &Bot,
     page: Page,
     section: &Section,
-    result: &str,
-    message: &str,
+    result: impl Into<String>,
+    message: impl Into<String> + Display,
     statuses: Option<HashMap<String, OperationStatus>>,
 ) -> anyhow::Result<Page> {
+    let botreq = Template::new(
+        "BOTREQ",
+        &indexmap! {
+            "1".to_string() => result.into(),
+        },
+    )
+    .expect("unhappened");
+
     let errors = if let Some(statuses) = statuses {
         statuses
             .iter()
@@ -102,43 +115,34 @@ pub async fn send_command_message(
                     None
                 }
             })
-            .map(|(page, error)| format!("# {page} - {error}"))
-            .collect::<Vec<_>>()
-            .join("\n")
+            .map(|(page, error)| format!("{page} - {error}"))
+            .collect_to_ol()
     } else {
-        "".to_string()
+        Wikicode::new_text("")
     };
 
     let id = if let Some(id) = id {
         format!("(ID: {id})")
     } else {
         "".to_string()
-    };
+    }
+    .as_wikicode();
 
-    let content = formatdoc! {"
-        {{{{BOTREQ|{result}}}}}{id} - {message}.
-        {errors}
-        --{sigunature}
-        ",
-        sigunature = get_sigunature()
-    };
+    let message = message.into();
+    let message_wikicode = message.as_wikicode();
+    let sigunature = get_sigunature().as_wikicode();
 
-    let before_wikicode = bot
-        .parsoid()
-        .transform_to_wikitext(&section.as_wikicode())
-        .await?;
-    let after_wikicode = before_wikicode + "\n" + &content;
-    let after_html = bot
-        .parsoid()
-        .transform_to_html(&after_wikicode)
-        .await?
-        .into_mutable();
+    section.append(&botreq);
+    section.append(&id);
+    section.append(&message_wikicode);
+    section.append(&errors);
+    section.append(&sigunature);
 
     let retry_strategy = ExponentialBackoff::from_millis(5).map(jitter).take(3);
     let (page, _) = Retry::spawn(retry_strategy, || async {
         let page = page.clone();
         page.save(
-            after_html.children().collect::<Vec<_>>().as_wikicode(),
+            section.children().collect::<Vec<_>>().as_wikicode(),
             &SaveOptions::summary(&format!("BOT: {message}"))
                 .section(&format!("{}", section.section_id())),
         )

@@ -2986,6 +2986,7 @@ dependencies = [
  "indexmap 1.9.3",
  "indoc",
  "kuchiki",
+ "markup5ever",
  "mwapi_responses",
  "mwbot",
  "pretty_assertions",

@@ -377,6 +377,7 @@ pub enum CommandStatus {
         statuses: HashMap<String, OperationStatus>,
         message: String,
     },
+    Skipped,
 }
 
 #[derive(Debug)]

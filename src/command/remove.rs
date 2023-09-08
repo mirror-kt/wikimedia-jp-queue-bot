@@ -90,5 +90,9 @@ pub async fn remove_category(
         };
     }
 
-    CommandStatus::Done { id: *id, statuses }
+    if statuses.is_empty() {
+        CommandStatus::Skipped
+    } else {
+        CommandStatus::Done { id: *id, statuses }
+    }
 }

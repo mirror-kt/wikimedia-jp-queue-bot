@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use mwbot::{Bot, SaveOptions};
-use tracing::{warn, info};
+use tracing::{info, warn};
 use ulid::Ulid;
 
 use super::CommandStatus;
@@ -93,5 +93,10 @@ pub async fn duplicate_category<'source, 'dest>(
             continue;
         };
     }
-    CommandStatus::Done { id: *id, statuses }
+
+    if statuses.is_empty() {
+        CommandStatus::Skipped
+    } else {
+        CommandStatus::Done { id: *id, statuses }
+    }
 }

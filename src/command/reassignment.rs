@@ -138,10 +138,14 @@ pub async fn reassignment<'to>(
         };
     }
 
-    add_speedy_deletion_template(bot, id, from, discussion_link, statuses).await
+    if statuses.is_empty() {
+        CommandStatus::Skipped
+    } else {
+        try_add_speedy_deletion_template(bot, id, from, discussion_link, statuses).await
+    }
 }
 
-async fn add_speedy_deletion_template(
+async fn try_add_speedy_deletion_template(
     bot: &Bot,
     id: &Ulid,
     from: &str,
@@ -168,7 +172,7 @@ async fn add_speedy_deletion_template(
             },
         )
         .expect("unhappened");
-        content.insert_after(template);
+        content.append(template);
         if let Err(err) = from_page
             .save(content, &SaveOptions::summary("BOT: 即時削除 (カテゴリ6)"))
             .await
