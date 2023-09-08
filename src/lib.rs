@@ -115,7 +115,7 @@ pub async fn send_command_message(
                     None
                 }
             })
-            .map(|(page, error)| format!("{page} - {error}"))
+            .map(|(page, error)| format!("[[{page}]] - {error}"))
             .collect_to_ol()
     } else {
         Wikicode::new_text("")
