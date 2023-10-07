@@ -14,8 +14,6 @@ use std::fmt::Display;
 use chrono::Utc;
 use command::OperationStatus;
 use indexmap19::indexmap;
-use indoc::formatdoc;
-use kuchiki::NodeRef;
 use mwbot::parsoid::prelude::*;
 use mwbot::{Bot, Page, SaveOptions};
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
@@ -23,39 +21,11 @@ use tokio_retry::Retry;
 use tracing::warn;
 use ulid::Ulid;
 
-use crate::util::ListExt as _;
+use crate::util::{IntoWikicode, IterExt as _};
 
 pub const BOT_NAME: &str = "QueueBot";
 pub const QUEUE_PAGE: &str = "プロジェクト:カテゴリ関連/キュー";
 pub const EMERGENCY_STOP_PAGE: &str = "プロジェクト:カテゴリ関連/キュー/緊急停止";
-
-pub trait IntoWikicode {
-    fn as_wikicode(&self) -> Wikicode;
-}
-
-impl IntoWikicode for NodeRef {
-    fn as_wikicode(&self) -> Wikicode {
-        Wikicode::new_node(&self.to_string())
-    }
-}
-
-impl IntoWikicode for Wikinode {
-    fn as_wikicode(&self) -> Wikicode {
-        Wikicode::new(&self.to_string())
-    }
-}
-
-impl IntoWikicode for Vec<Wikinode> {
-    fn as_wikicode(&self) -> Wikicode {
-        Wikicode::new(&self.iter().map(|node| node.to_string()).collect::<String>())
-    }
-}
-
-impl IntoWikicode for String {
-    fn as_wikicode(&self) -> Wikicode {
-        Wikicode::new_text(self)
-    }
-}
 
 /// `動作中` と書かれていたら: 動作する (returns false)
 /// それ以外(例: `緊急停止`)なら: 止める (returns true)
@@ -79,18 +49,17 @@ pub async fn is_emergency_stopped(bot: &Bot) -> bool {
     emergency_stopped
 }
 
-const SIGUNATURE: &str = r#"[[User:QueueBot|QueueBot]] <small><span class="plainlinks">([[Special:Contributions/QueueBot|投稿]]/[{{fullurl:Special:Log/delete|user=QueueBot}} 削除]/[{{fullurl:Special:Log/move|user=QueueBot}} 移動])</span></small>"#;
-fn get_sigunature() -> String {
+const SIGNATURE: &str = r#"[[User:QueueBot|QueueBot]] <small><span class="plainlinks">([[Special:Contributions/QueueBot|投稿]]/[{{fullurl:Special:Log/delete|user=QueueBot}} 削除]/[{{fullurl:Special:Log/move|user=QueueBot}} 移動])</span></small>"#;
+fn get_signature() -> String {
     let current_datetime = Utc::now();
     format!(
-        "{SIGUNATURE} {} (UTC)",
+        "{SIGNATURE} {} (UTC)",
         current_datetime.format("%Y年%m月%d日 %H:%M")
     )
 }
 
 pub async fn send_command_message(
     id: Option<&Ulid>,
-    bot: &Bot,
     page: Page,
     section: &Section,
     result: impl Into<String>,
@@ -130,13 +99,13 @@ pub async fn send_command_message(
 
     let message = message.into();
     let message_wikicode = message.as_wikicode();
-    let sigunature = get_sigunature().as_wikicode();
+    let signature = get_signature().as_wikicode();
 
     section.append(&botreq);
     section.append(&id);
     section.append(&message_wikicode);
     section.append(&errors);
-    section.append(&sigunature);
+    section.append(&signature);
 
     let retry_strategy = ExponentialBackoff::from_millis(5).map(jitter).take(3);
     let (page, _) = Retry::spawn(retry_strategy, || async {
