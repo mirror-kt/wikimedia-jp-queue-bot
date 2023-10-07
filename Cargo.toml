@@ -27,7 +27,7 @@ kuchiki = "0.8.1"
 markup5ever = "0.10.1"
 mwapi_responses = "0.3.4"
 mwbot = "0.5.3"
-serde = { version = "1.0.185", features = ["derive"] }
+serde = { version = "1.0.188", features = ["derive"] }
 serde_json = "1.0.105"
 sqlx = { version = "0.7.1", features = [
     "tls-rustls",
