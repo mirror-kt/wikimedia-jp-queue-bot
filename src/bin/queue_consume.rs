@@ -5,6 +5,29 @@ use wikimedia_jp_queue_bot::command::{Command, CommandStatus};
 use wikimedia_jp_queue_bot::config::load_config;
 use wikimedia_jp_queue_bot::{send_command_message, QUEUE_PAGE};
 
+macro_rules! send_command_message {
+    ($id:expr, $queue_page:expr, $queue:expr, $result:expr, $message:expr, $statuses:expr) => {
+        match send_command_message(
+            $id,
+            $queue_page.clone(),
+            $queue,
+            $result,
+            $message,
+            $statuses,
+        )
+        .await
+        {
+            Ok(page) => {
+                $queue_page = page;
+            }
+            Err(err) => {
+                warn!(page = QUEUE_PAGE, ?err, "could not save command log");
+                continue;
+            }
+        }
+    };
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().init();
@@ -30,70 +53,24 @@ async fn main() -> anyhow::Result<()> {
             Ok(command) => command,
             Err(err) => {
                 warn!(?err, "parsing error occurred");
-                match send_command_message(
-                    None,
-                    &bot,
-                    queue_page.clone(),
-                    &queue,
-                    "中止",
-                    &err.to_string(),
-                    None,
-                )
-                .await
-                {
-                    Ok(page) => {
-                        queue_page = page;
-                    }
-                    Err(err) => {
-                        warn!(?err, "could not save command log");
-                    }
-                }
+                send_command_message!(None, queue_page, &queue, "中止", &err.to_string(), None);
                 continue;
             }
         };
 
         match command.execute(&bot, &config).await {
             CommandStatus::Done { id, statuses } => {
-                match send_command_message(
+                send_command_message!(
                     Some(&id),
-                    &bot,
-                    queue_page.clone(),
+                    queue_page,
                     &queue,
                     "完了",
                     &format!("{}件の操作を完了しました", statuses.len()),
-                    Some(statuses),
-                )
-                .await
-                {
-                    Ok(page) => {
-                        queue_page = page;
-                    }
-                    Err(err) => {
-                        warn!(page = QUEUE_PAGE, ?err, "could not save command log");
-                        continue;
-                    }
-                }
+                    Some(statuses)
+                );
             }
             CommandStatus::EmergencyStopped => {
-                match send_command_message(
-                    None,
-                    &bot,
-                    queue_page.clone(),
-                    &queue,
-                    "保留",
-                    "緊急停止しました",
-                    None,
-                )
-                .await
-                {
-                    Ok(page) => {
-                        queue_page = page;
-                    }
-                    Err(err) => {
-                        warn!(page = QUEUE_PAGE, ?err, "could not save command log");
-                        continue;
-                    }
-                }
+                send_command_message!(None, queue_page, &queue, "保留", "緊急停止しました", None);
                 continue;
             }
             CommandStatus::Error {
@@ -101,25 +78,14 @@ async fn main() -> anyhow::Result<()> {
                 statuses,
                 message,
             } => {
-                match send_command_message(
+                send_command_message!(
                     Some(&id),
-                    &bot,
-                    queue_page.clone(),
+                    queue_page,
                     &queue,
                     "中止",
                     &message,
-                    Some(statuses),
-                )
-                .await
-                {
-                    Ok(page) => {
-                        queue_page = page;
-                    }
-                    Err(err) => {
-                        warn!(page = QUEUE_PAGE, ?err, "could not save command log");
-                        continue;
-                    }
-                }
+                    Some(statuses)
+                );
             }
             CommandStatus::Skipped => {
                 // do nothing
