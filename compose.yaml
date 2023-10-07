@@ -5,6 +5,20 @@ services:
       - MARIADB_USER=queuebot
       - MARIADB_PASSWORD=password
       - MARIADB_RANDOM_ROOT_PASSWORD=true
-      - MARIADB_DATABASE=s55507__queuebot_p
+      - MARIADB_DATABASE=queuebot
     ports:
       - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  sqldef:
+    image: ghcr.io/mirror-kt/mysqldef:v0.16.8
+    command: "-h database -uqueuebot -ppassword queuebot --file ./migration/def.sql"
+    working_dir: /work
+    volumes:
+      - "./migration:/work/migration"
+    depends_on:
+      database:
+        condition: service_healthy

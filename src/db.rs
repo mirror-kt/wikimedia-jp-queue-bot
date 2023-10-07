@@ -15,7 +15,7 @@ pub async fn get_connection(config: &MySqlConfig) -> anyhow::Result<MySqlConnect
             .port(config.port)
             .username(&config.user)
             .password(&config.password)
-            .database("s55507__queuebot_p"),
+            .database(&config.database),
     )
     .await
     .context("could not get connection")
