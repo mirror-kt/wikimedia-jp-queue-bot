@@ -1,9 +1,10 @@
+use anyhow::Context;
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
 use tracing::warn;
 use wikimedia_jp_queue_bot::command::{Command, CommandStatus};
 use wikimedia_jp_queue_bot::config::load_config;
-use wikimedia_jp_queue_bot::{send_command_message, QUEUE_PAGE};
+use wikimedia_jp_queue_bot::{send_command_message, QUEUE_PAGE, SIGNATURE, SIGNATURE_WIKITEXT};
 
 macro_rules! send_command_message {
     ($id:expr, $queue_page:expr, $queue:expr, $result:expr, $message:expr, $statuses:expr) => {
@@ -34,6 +35,17 @@ async fn main() -> anyhow::Result<()> {
 
     let bot = Bot::from_default_config().await?;
     let config = load_config()?;
+
+    // Initialize signature
+    bot.parsoid()
+        .transform_to_html(SIGNATURE_WIKITEXT)
+        .await
+        .context("could not parse signature to html")
+        .and_then(|signature| {
+            SIGNATURE
+                .set(signature)
+                .context("could not set signature to OnceCell")
+        })?;
 
     let mut queue_page = bot.page(QUEUE_PAGE)?;
     let queue_html = queue_page.html().await?.into_mutable();

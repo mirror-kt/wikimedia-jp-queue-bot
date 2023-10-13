@@ -8,6 +8,7 @@ pub mod generator;
 pub mod test;
 pub mod util;
 
+use std::cell::OnceCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 
@@ -49,13 +50,22 @@ pub async fn is_emergency_stopped(bot: &Bot) -> bool {
     emergency_stopped
 }
 
-const SIGNATURE: &str = r#"[[User:QueueBot|QueueBot]] <small><span class="plainlinks">([[Special:Contributions/QueueBot|投稿]]/[{{fullurl:Special:Log/delete|user=QueueBot}} 削除]/[{{fullurl:Special:Log/move|user=QueueBot}} 移動])</span></small>"#;
-fn get_signature() -> String {
+pub const SIGNATURE_WIKITEXT: &str = r#"[[User:QueueBot|QueueBot]] <small><span class="plainlinks">([[Special:Contributions/QueueBot|投稿]]/[{{fullurl:Special:Log/delete|user=QueueBot}} 削除]/[{{fullurl:Special:Log/move|user=QueueBot}} 移動])</span></small>"#;
+pub const SIGNATURE: OnceCell<ImmutableWikicode> = OnceCell::new();
+
+fn get_signature() -> Wikicode {
     let current_datetime = Utc::now();
-    format!(
-        "{SIGNATURE} {} (UTC)",
-        current_datetime.format("%Y年%m月%d日 %H:%M")
-    )
+    let signature = SIGNATURE
+        .get()
+        .expect("signature uninitialized")
+        .into_mutable();
+
+    signature.append(&Wikicode::new_text(&format!(
+        "{} (UTC)",
+        current_datetime.format("%Y年%m月%d日 %H:%M"),
+    )));
+
+    signature
 }
 
 pub async fn send_command_message(
@@ -106,7 +116,7 @@ pub async fn send_command_message(
 
     let message = message.into();
     let message_wikicode = message.as_wikicode();
-    let signature = get_signature().as_wikicode();
+    let signature = get_signature();
 
     section.append(&botreq);
     section.append(&id);
