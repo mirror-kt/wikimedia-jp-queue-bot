@@ -1,3 +1,20 @@
+use std::collections::HashMap;
+use std::fmt::Display;
+use std::sync::OnceLock;
+
+use chrono::Utc;
+use indexmap19::indexmap;
+use mwbot::{Bot, Page, SaveOptions};
+use mwbot::parsoid::prelude::*;
+use tokio_retry::Retry;
+use tokio_retry::strategy::{ExponentialBackoff, jitter};
+use tracing::warn;
+use ulid::Ulid;
+
+use command::OperationStatus;
+
+use crate::util::{IntoWikicode as _, IterExt as _};
+
 pub mod action;
 pub mod category;
 pub mod command;
@@ -7,22 +24,6 @@ pub mod generator;
 #[cfg(test)]
 pub mod test;
 pub mod util;
-
-use std::cell::OnceCell;
-use std::collections::HashMap;
-use std::fmt::Display;
-
-use chrono::Utc;
-use command::OperationStatus;
-use indexmap19::indexmap;
-use mwbot::parsoid::prelude::*;
-use mwbot::{Bot, Page, SaveOptions};
-use tokio_retry::strategy::{jitter, ExponentialBackoff};
-use tokio_retry::Retry;
-use tracing::warn;
-use ulid::Ulid;
-
-use crate::util::{IntoWikicode, IterExt as _};
 
 pub const BOT_NAME: &str = "QueueBot";
 pub const QUEUE_PAGE: &str = "プロジェクト:カテゴリ関連/キュー";
@@ -51,13 +52,14 @@ pub async fn is_emergency_stopped(bot: &Bot) -> bool {
 }
 
 pub const SIGNATURE_WIKITEXT: &str = r#"[[User:QueueBot|QueueBot]] <small><span class="plainlinks">([[Special:Contributions/QueueBot|投稿]]/[{{fullurl:Special:Log/delete|user=QueueBot}} 削除]/[{{fullurl:Special:Log/move|user=QueueBot}} 移動])</span></small>"#;
-pub const SIGNATURE: OnceCell<ImmutableWikicode> = OnceCell::new();
+pub static SIGNATURE: OnceLock<ImmutableWikicode> = OnceLock::new();
 
 fn get_signature() -> Wikicode {
     let current_datetime = Utc::now();
     let signature = SIGNATURE
         .get()
         .expect("signature uninitialized")
+        .clone()
         .into_mutable();
 
     signature.append(&Wikicode::new_text(&format!(
@@ -82,7 +84,7 @@ pub async fn send_command_message(
             "1".to_string() => result.into(),
         },
     )
-    .expect("unhappened");
+        .expect("unhappened");
 
     let errors = if let Some(statuses) = statuses {
         statuses
@@ -112,7 +114,7 @@ pub async fn send_command_message(
     } else {
         "".to_string()
     }
-    .as_wikicode();
+        .as_wikicode();
 
     let message = message.into();
     let message_wikicode = message.as_wikicode();
@@ -132,9 +134,9 @@ pub async fn send_command_message(
             &SaveOptions::summary(&format!("BOT: {message}"))
                 .section(&format!("{}", section.section_id())),
         )
-        .await
+            .await
     })
-    .await?;
+        .await?;
 
     Ok(page)
 }

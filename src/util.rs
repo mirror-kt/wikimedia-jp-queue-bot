@@ -9,7 +9,7 @@ pub trait IterExt {
     fn collect_to_ol(self) -> Wikicode;
 }
 
-impl<T: Iterator<Item = Wikicode>> IterExt for T {
+impl<T: Iterator<Item=Wikicode>> IterExt for T {
     fn collect_to_ul(self) -> Wikicode {
         let wikicode = Wikicode::new_node("ul");
         self.for_each(|c| {

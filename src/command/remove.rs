@@ -5,12 +5,13 @@ use mwbot::{Bot, SaveOptions};
 use tracing::{info, warn};
 use ulid::Ulid;
 
-use super::{CommandStatus, OperationStatus};
 use crate::category::{replace_category_tag, replace_redirect_category_template};
 use crate::config::QueueBotConfig;
-use crate::db::{store_operation, OperationType};
+use crate::db::{OperationType, store_operation};
 use crate::generator::list_category_members;
 use crate::is_emergency_stopped;
+
+use super::{CommandStatus, OperationStatus};
 
 #[tracing::instrument(skip(bot))]
 pub async fn remove_category(
@@ -77,7 +78,7 @@ pub async fn remove_category(
             res.pageid,
             res.newrevid,
         )
-        .await
+            .await
         {
             warn!("{}", err);
             statuses.insert(

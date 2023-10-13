@@ -2,8 +2,8 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
-use mwbot::generators::{CategoryMembers, Generator, Search};
 use mwbot::{Bot, Page, Result};
+use mwbot::generators::{CategoryMembers, Generator, Search};
 use tokio::sync::mpsc::{self, Receiver};
 
 /// カテゴリに所属する全ページを返す.

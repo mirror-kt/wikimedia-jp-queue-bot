@@ -1,7 +1,3 @@
-pub mod duplicate;
-pub mod reassignment;
-pub mod remove;
-
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -18,6 +14,10 @@ use self::reassignment::reassignment;
 use self::remove::remove_category;
 use crate::config::{MySqlConfig, QueueBotConfig};
 use crate::db::{store_command, CommandType};
+
+pub mod duplicate;
+pub mod reassignment;
+pub mod remove;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum Command {
@@ -489,7 +489,7 @@ mod test {
             *command5,
             Command::RemoveCategory {
                 category: "Category:Name1".to_string(),
-                discussion_link: "利用者:Misato Kano".to_string()
+                discussion_link: "利用者:Misato Kano".to_string(),
             }
         );
 
@@ -499,7 +499,7 @@ mod test {
             Command::DuplicateCategory {
                 source: "Category:Name1".to_string(),
                 dest: "Category:Name2".to_string(),
-                discussion_link: "利用者:Misato Kano".to_string()
+                discussion_link: "利用者:Misato Kano".to_string(),
             }
         );
 

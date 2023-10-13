@@ -16,9 +16,9 @@ pub fn replace_category_tag(html: &Wikicode, from: impl AsRef<str>, to: impl AsR
     let Some(category_tag) = categories
         .iter()
         .find(|category| category.category() == *from.as_ref())
-    else {
-        return;
-    };
+        else {
+            return;
+        };
 
     if to.is_empty() {
         category_tag.detach();
@@ -186,12 +186,13 @@ mod test {
     use mwbot::parsoid::prelude::*;
     use pretty_assertions::assert_eq;
 
+    use crate::test;
+
     use super::{
         replace_category_tag,
         replace_redirect_category_template,
         replace_redirect_category_template_complex,
     };
-    use crate::test;
 
     #[tokio::test]
     async fn test_replace_redirect_tag_one() {
