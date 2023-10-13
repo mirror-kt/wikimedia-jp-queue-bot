@@ -84,7 +84,14 @@ pub async fn send_command_message(
                     None
                 }
             })
-            .map(|(page, error)| format!("[[{page}]] - {error}"))
+            .map(|(page, error)| {
+                let wikicode = Wikicode::new_text("");
+                let wikilink = WikiLink::new(page, &Wikicode::new_text(page));
+                wikicode.append(&wikilink);
+                wikicode.append(&Wikicode::new_text(&format!("- {error}")));
+
+                wikicode
+            })
             .collect_to_ol()
     } else {
         Wikicode::new_text("")
