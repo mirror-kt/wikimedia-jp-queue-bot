@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 
+use indexmap::IndexMap;
 use mwbot::{Bot, SaveOptions};
 use tracing::{info, warn};
 use ulid::Ulid;
@@ -25,7 +25,7 @@ pub async fn remove_category(
 
     let mut category_members = list_category_members(bot, category, true, true).await;
 
-    let mut statuses = HashMap::new();
+    let mut statuses = IndexMap::new();
     while let Some(page) = category_members.recv().await {
         if is_emergency_stopped(bot).await {
             return CommandStatus::EmergencyStopped;

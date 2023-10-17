@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use std::fmt::Display;
 
 use command::OperationStatus;
-use indexmap19::indexmap;
+use indexmap::IndexMap;
+use indexmap19::indexmap as indexmap19;
 use mwbot::parsoid::prelude::*;
 use mwbot::{Bot, Page, SaveOptions};
 use tap::Tap as _;
@@ -99,12 +99,12 @@ fn format_message<'i, I: WikinodeIterator, D: DateTimeProvider>(
     id: Option<&Ulid>,
     result: impl Into<String>,
     message: impl Into<String> + Display,
-    statuses: Option<HashMap<String, OperationStatus>>,
+    statuses: Option<IndexMap<String, OperationStatus>>,
     datetime_provider: D,
 ) -> &'i I {
     let botreq = Template::new(
         "BOTREQ",
-        &indexmap! {
+        &indexmap19! {
             "1".to_string() => result.into(),
         },
     )
@@ -155,7 +155,7 @@ pub async fn send_command_message(
     section: &Section,
     result: impl Into<String>,
     message: impl Into<String> + Display,
-    statuses: Option<HashMap<String, OperationStatus>>,
+    statuses: Option<IndexMap<String, OperationStatus>>,
 ) -> anyhow::Result<Page> {
     let [result, message] = [result.into(), message.into()];
     let section = format_message(section, id, result, &message, statuses, UtcDateTimeProvider);
@@ -177,9 +177,8 @@ pub async fn send_command_message(
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
-
     use chrono::{DateTime, TimeZone, Utc};
+    use indexmap::{indexmap, IndexMap};
     use indoc::indoc;
     use mwbot::parsoid::Wikicode;
     use ulid::Ulid;
@@ -226,7 +225,7 @@ mod test {
             Some(&Ulid::from_string("01HCZ2CQPV5HW8NJAH6V1Z3KG9").unwrap()),
             "完了",
             "10件の操作が完了しました",
-            Some(HashMap::new()),
+            Some(IndexMap::new()),
             CustomDateTimeProvider(datetime),
         );
 
@@ -257,7 +256,7 @@ mod test {
             Some(&Ulid::from_string("01HCZ2CQPV5HW8NJAH6V1Z3KG9").unwrap()),
             "完了",
             "10件の操作が完了しました",
-            Some(lit2::hashmap! {
+            Some(indexmap! {
                 "テスト".to_string() => OperationStatus::Error("これはエラーです".to_string()),
                 "テスト2".to_string() => OperationStatus::Error("これはエラーです2".to_string()),
             }),

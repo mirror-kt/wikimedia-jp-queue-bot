@@ -1,8 +1,8 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
 
 use anyhow::{anyhow, Context as _};
 use if_chain::if_chain;
+use indexmap::IndexMap;
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
 use serde::{Deserialize, Serialize};
@@ -314,7 +314,7 @@ impl Command {
             warn!("{}", err);
             return CommandStatus::Error {
                 id,
-                statuses: HashMap::new(),
+                statuses: IndexMap::new(),
                 message: "データベースへのID保存に失敗しました".to_string(),
             };
         }
@@ -367,14 +367,14 @@ pub enum CommandStatus {
     EmergencyStopped,
     Done {
         id: Ulid,
-        statuses: HashMap<String, OperationStatus>,
+        statuses: IndexMap<String, OperationStatus>,
     },
     /// Commandがエラーの場合
     /// Operationがエラーの場合はOperationStatusで示す
     Error {
         id: Ulid,
         /// <title, status>
-        statuses: HashMap<String, OperationStatus>,
+        statuses: IndexMap<String, OperationStatus>,
         message: String,
     },
     Skipped,

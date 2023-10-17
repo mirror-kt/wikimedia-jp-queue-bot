@@ -1,7 +1,7 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fmt::Debug;
 
+use indexmap::IndexMap;
 use mwbot::{Bot, SaveOptions};
 use tracing::{info, warn};
 use ulid::Ulid;
@@ -30,7 +30,7 @@ pub async fn duplicate_category<'source, 'dest>(
 
     let mut category_members = list_category_members(bot, &source, true, true).await;
 
-    let mut statuses = HashMap::new();
+    let mut statuses = IndexMap::new();
     while let Some(page) = category_members.recv().await {
         if is_emergency_stopped(bot).await {
             return CommandStatus::EmergencyStopped;

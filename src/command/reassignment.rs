@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 
-use indexmap19::indexmap;
+use indexmap::IndexMap;
+use indexmap19::indexmap as indexmap19;
 use mwbot::parsoid::prelude::*;
 use mwbot::{Bot, SaveOptions};
 use tracing::{info, warn};
@@ -34,7 +34,7 @@ pub async fn reassignment<'to>(
     let mut category_members =
         list_category_members(bot, from, include_article, include_category).await;
 
-    let mut statuses = HashMap::new();
+    let mut statuses = IndexMap::new();
     while let Some(page) = category_members.recv().await {
         if is_emergency_stopped(bot).await {
             return CommandStatus::EmergencyStopped;
@@ -151,7 +151,7 @@ async fn try_add_speedy_deletion_template(
     id: &Ulid,
     from: &str,
     discussion_link: &str,
-    statuses: HashMap<String, OperationStatus>,
+    statuses: IndexMap<String, OperationStatus>,
 ) -> CommandStatus {
     let mut category_members = list_category_members(bot, from, true, true).await;
     if category_members.recv().await.is_none() {
@@ -167,7 +167,7 @@ async fn try_add_speedy_deletion_template(
         let content = Wikicode::new("");
         let template = &Template::new(
             "即時削除",
-            &indexmap! {
+            &indexmap19! {
                 "1".to_string() => "カテゴリ6".to_string(),
                 "2".to_string() => format!("[[{}]]", discussion_link),
             },

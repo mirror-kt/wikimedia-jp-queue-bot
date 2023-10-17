@@ -21,7 +21,8 @@ chrono = { version = "0.4.31", default-features = false, features = [
 config = { version = "0.13.3", default-features = false, features = ["toml"] }
 futures-util = "0.3.28"
 if_chain = "1.0.2"
-indexmap19 = { version = "1.9.3", package = "indexmap" }
+indexmap = "2.0.2"
+indexmap19 = { version = "1.9.3", package = "indexmap" } # for mwbot
 indoc = "2.0.4"
 kuchiki = "0.8.1"
 markup5ever = "0.11.0"
