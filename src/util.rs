@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use kuchiki::NodeRef;
 use mwbot::parsoid::prelude::*;
 
@@ -9,7 +10,7 @@ pub trait IterExt {
     fn collect_to_ol(self) -> Wikicode;
 }
 
-impl<T: Iterator<Item=Wikicode>> IterExt for T {
+impl<T: Iterator<Item = Wikicode>> IterExt for T {
     fn collect_to_ul(self) -> Wikicode {
         let wikicode = Wikicode::new_node("ul");
         self.for_each(|c| {
@@ -58,5 +59,29 @@ impl IntoWikicode for Vec<Wikinode> {
 impl IntoWikicode for String {
     fn as_wikicode(&self) -> Wikicode {
         Wikicode::new_text(self)
+    }
+}
+
+pub trait DateTimeProvider {
+    fn now(&self) -> DateTime<Utc>;
+}
+
+pub struct UtcDateTimeProvider;
+impl DateTimeProvider for UtcDateTimeProvider {
+    fn now(&self) -> DateTime<Utc> {
+        Utc::now()
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use std::path::Path;
+
+    use mwbot::Bot;
+
+    pub async fn bot() -> Bot {
+        Bot::from_path(Path::new("./mwbot.test.toml"))
+            .await
+            .unwrap()
     }
 }

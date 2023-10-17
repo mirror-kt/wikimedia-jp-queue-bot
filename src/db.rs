@@ -1,8 +1,8 @@
 use anyhow::Context as _;
-use sqlx::{Connection as _, Executor as _, MySqlConnection};
 use sqlx::mysql::MySqlConnectOptions;
+use sqlx::{Connection as _, Executor as _, MySqlConnection};
+use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
-use tokio_retry::strategy::{ExponentialBackoff, jitter};
 use ulid::Ulid;
 use uuid::Uuid;
 
@@ -17,8 +17,8 @@ pub async fn get_connection(config: &MySqlConfig) -> anyhow::Result<MySqlConnect
             .password(&config.password)
             .database(&config.database),
     )
-        .await
-        .context("could not get connection")
+    .await
+    .context("could not get connection")
 }
 
 pub async fn store_command(
@@ -48,7 +48,7 @@ pub async fn store_command(
 
         Ok(())
     })
-        .await
+    .await
 }
 
 #[derive(sqlx::Type)]
@@ -92,7 +92,7 @@ pub async fn store_operation(
 
         Ok(())
     })
-        .await
+    .await
 }
 
 #[derive(sqlx::Type)]

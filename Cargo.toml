@@ -21,7 +21,8 @@ chrono = { version = "0.4.31", default-features = false, features = [
 config = { version = "0.13.3", default-features = false, features = ["toml"] }
 futures-util = "0.3.28"
 if_chain = "1.0.2"
-indexmap19 = { version = "1.9.3", package = "indexmap" }
+indexmap = "2.0.2"
+indexmap19 = { version = "1.9.3", package = "indexmap" } # for mwbot
 indoc = "2.0.4"
 kuchiki = "0.8.1"
 markup5ever = "0.11.0"
@@ -37,6 +38,7 @@ sqlx = { version = "0.7.2", features = [
     "macros",
     "runtime-tokio",
 ] }
+tap = "1.0.1"
 tokio = { version = "1.33.0", features = [
     "rt",
     "rt-multi-thread",
@@ -50,4 +52,5 @@ ulid = { version = "1.1.0", features = ["uuid"] }
 uuid = "1.4.1"
 
 [dev-dependencies]
+indoc = "2.0.4"
 pretty_assertions = "1.4.0"
