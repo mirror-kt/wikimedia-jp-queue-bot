@@ -6,14 +6,13 @@ use mwbot::{Bot, SaveOptions};
 use tracing::{info, warn};
 use ulid::Ulid;
 
+use super::CommandStatus;
 use crate::category::{replace_category_tag, replace_redirect_category_template};
 use crate::command::OperationStatus;
 use crate::config::QueueBotConfig;
-use crate::db::{OperationType, store_operation};
+use crate::db::{store_operation, OperationType};
 use crate::generator::list_category_members;
 use crate::is_emergency_stopped;
-
-use super::CommandStatus;
 
 #[tracing::instrument(skip(bot, config))]
 pub async fn duplicate_category<'source, 'dest>(
@@ -29,7 +28,7 @@ pub async fn duplicate_category<'source, 'dest>(
     let to = &[source.clone(), dest.clone()];
     let discussion_link = discussion_link.as_ref();
 
-    let mut category_members = list_category_members(bot, &source, true, true);
+    let mut category_members = list_category_members(bot, &source, true, true).await;
 
     let mut statuses = HashMap::new();
     while let Some(page) = category_members.recv().await {
@@ -82,7 +81,7 @@ pub async fn duplicate_category<'source, 'dest>(
             res.pageid,
             res.newrevid,
         )
-            .await
+        .await
         {
             warn!("{}", err);
             statuses.insert(

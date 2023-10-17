@@ -394,7 +394,7 @@ mod test {
     use mwbot::parsoid::prelude::*;
 
     use super::Command;
-    use crate::test;
+    use crate::util::test;
 
     #[tokio::test]
     async fn test_parse_command() {

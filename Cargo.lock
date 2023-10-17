@@ -1039,6 +1039,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57bcfdad1b858c2db7c38303a6d2ad4dfaf5eb53dfeb0910128b2c26d6158503"
 
 [[package]]
+name = "lit2"
+version = "1.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dcd0c289759ba04eac993bb32289580c7b37955957f8928cab7b29d54cdf89de"
+
+[[package]]
 name = "lock_api"
 version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2456,6 +2462,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "tap"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
+
+[[package]]
 name = "tempfile"
 version = "3.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3017,6 +3029,7 @@ dependencies = [
  "indexmap 1.9.3",
  "indoc",
  "kuchiki",
+ "lit2",
  "markup5ever 0.11.0",
  "mwapi_responses",
  "mwbot",
@@ -3024,6 +3037,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "tap",
  "tokio",
  "tokio-retry",
  "tracing",

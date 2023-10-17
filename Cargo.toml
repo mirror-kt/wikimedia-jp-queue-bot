@@ -37,6 +37,7 @@ sqlx = { version = "0.7.2", features = [
     "macros",
     "runtime-tokio",
 ] }
+tap = "1.0.1"
 tokio = { version = "1.33.0", features = [
     "rt",
     "rt-multi-thread",
@@ -50,4 +51,6 @@ ulid = { version = "1.1.0", features = ["uuid"] }
 uuid = "1.4.1"
 
 [dev-dependencies]
+indoc = "2.0.4"
+lit2 = "1.0.9"
 pretty_assertions = "1.4.0"

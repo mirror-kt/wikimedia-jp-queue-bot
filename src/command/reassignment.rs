@@ -31,7 +31,8 @@ pub async fn reassignment<'to>(
     let to = to.as_ref();
     let discussion_link = discussion_link.as_ref();
 
-    let mut category_members = list_category_members(bot, from, include_article, include_category);
+    let mut category_members =
+        list_category_members(bot, from, include_article, include_category).await;
 
     let mut statuses = HashMap::new();
     while let Some(page) = category_members.recv().await {
@@ -152,7 +153,7 @@ async fn try_add_speedy_deletion_template(
     discussion_link: &str,
     statuses: HashMap<String, OperationStatus>,
 ) -> CommandStatus {
-    let mut category_members = list_category_members(bot, from, true, true);
+    let mut category_members = list_category_members(bot, from, true, true).await;
     if category_members.recv().await.is_none() {
         let Ok(from_page) = bot.page(from) else {
             warn!("Error while getting page: {:?}", from);
