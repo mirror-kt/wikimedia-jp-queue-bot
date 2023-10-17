@@ -53,5 +53,4 @@ uuid = "1.4.1"
 
 [dev-dependencies]
 indoc = "2.0.4"
-lit2 = "1.0.9"
 pretty_assertions = "1.4.0"
