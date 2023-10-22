@@ -41,7 +41,7 @@ pub fn replace_category_tag(html: &Wikicode, from: impl AsRef<str>, to: impl AsR
 
 /// `{{Template:リダイレクトの所属カテゴリ}}` の置換
 /// `to` が空の場合、テンプレートを削除する
-pub fn replace_redirect_category_template(
+pub fn replace_category_of_redirects_template(
     html: &Wikicode,
     from: impl AsRef<str>,
     to: impl AsRef<[String]>,
@@ -67,16 +67,16 @@ pub fn replace_redirect_category_template(
             .keys()
             .all(|key| key.parse::<u32>().is_ok())
         {
-            replace_redirect_category_template_simple(&template, from, to);
+            replace_category_of_redirects_template_simple(&template, from, to);
         } else {
-            replace_redirect_category_template_complex(&template, from, to);
+            replace_category_of_redirects_template_complex(&template, from, to);
         }
     }
 }
 
 /// 1 = Category:Name1 | 2 = Category:Name2 形式の場合
 /// Category:Name1 | Category:Name2 形式の場合もindexmap上はこの形
-fn replace_redirect_category_template_simple(template: &Template, from: &str, to: &[String]) {
+fn replace_category_of_redirects_template_simple(template: &Template, from: &str, to: &[String]) {
     let mut params = template
         .params()
         .sorted_by(|k1, _, k2, _| k1.parse::<u32>().unwrap().cmp(&k2.parse::<u32>().unwrap()))
@@ -109,7 +109,7 @@ fn replace_redirect_category_template_simple(template: &Template, from: &str, to
 }
 
 // 1-1 = Category:Name1 | 1-2 = Category:Name2 形式の場合
-fn replace_redirect_category_template_complex(template: &Template, from: &str, to: &[String]) {
+fn replace_category_of_redirects_template_complex(template: &Template, from: &str, to: &[String]) {
     let params = template.params();
 
     let mut result = IndexMap::new();
@@ -187,9 +187,9 @@ mod test {
     use pretty_assertions::assert_eq;
 
     use super::{
+        replace_category_of_redirects_template,
+        replace_category_of_redirects_template_complex,
         replace_category_tag,
-        replace_redirect_category_template,
-        replace_redirect_category_template_complex,
     };
     use crate::util::test;
 
@@ -301,7 +301,7 @@ mod test {
             .unwrap()
             .into_mutable();
 
-        replace_redirect_category_template(&html, &from, &[to]);
+        replace_category_of_redirects_template(&html, &from, &[to]);
 
         let replaced_wikicode = bot.parsoid().transform_to_wikitext(&html).await.unwrap();
         assert_eq!(after, replaced_wikicode);
@@ -329,7 +329,7 @@ mod test {
             .unwrap()
             .into_mutable();
 
-        replace_redirect_category_template(&html, &from, to);
+        replace_category_of_redirects_template(&html, &from, to);
 
         let replaced_wikicode = bot.parsoid().transform_to_wikitext(&html).await.unwrap();
         assert_eq!(after, replaced_wikicode);
@@ -355,7 +355,7 @@ mod test {
             .unwrap()
             .into_mutable();
 
-        replace_redirect_category_template(&html, &from, to);
+        replace_category_of_redirects_template(&html, &from, to);
 
         let replaced_wikicode = bot.parsoid().transform_to_wikitext(&html).await.unwrap();
         assert_eq!(after, replaced_wikicode);
@@ -391,7 +391,7 @@ mod test {
             .into_mutable();
         let template = &html.filter_templates().unwrap()[0];
 
-        replace_redirect_category_template_complex(template, from, to);
+        replace_category_of_redirects_template_complex(template, from, to);
 
         let replaced_wikicode = bot.parsoid().transform_to_wikitext(&html).await.unwrap();
         assert_eq!(after, replaced_wikicode);
@@ -422,7 +422,7 @@ mod test {
             .into_mutable();
         let template = &html.filter_templates().unwrap()[0];
 
-        replace_redirect_category_template_complex(template, from, to);
+        replace_category_of_redirects_template_complex(template, from, to);
 
         let replaced_wikicode = bot.parsoid().transform_to_wikitext(&html).await.unwrap();
         assert_eq!(after, replaced_wikicode);
@@ -450,7 +450,7 @@ mod test {
             .into_mutable();
         let template = &html.filter_templates().unwrap()[0];
 
-        replace_redirect_category_template_complex(template, from, to);
+        replace_category_of_redirects_template_complex(template, from, to);
 
         let replaced_wikicode = bot.parsoid().transform_to_wikitext(&html).await.unwrap();
         assert_eq!(after, replaced_wikicode);

@@ -7,7 +7,7 @@ use tracing::{info, warn};
 use ulid::Ulid;
 
 use super::CommandStatus;
-use crate::category::{replace_category_tag, replace_redirect_category_template};
+use crate::category::{replace_category_of_redirects_template, replace_category_tag};
 use crate::command::OperationStatus;
 use crate::config::QueueBotConfig;
 use crate::db::{store_operation, OperationType};
@@ -47,7 +47,7 @@ pub async fn duplicate_category<'source, 'dest>(
         let page_title = page.title().to_string();
 
         replace_category_tag(&html, &source, to);
-        replace_redirect_category_template(&html, &source, to);
+        replace_category_of_redirects_template(&html, &source, to);
 
         let (_, res) = {
             let result = page

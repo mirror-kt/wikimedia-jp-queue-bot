@@ -9,7 +9,7 @@ use ulid::Ulid;
 
 use super::{CommandStatus, OperationStatus};
 use crate::action::get_page_info;
-use crate::category::{replace_category_tag, replace_redirect_category_template};
+use crate::category::{replace_category_of_redirects_template, replace_category_tag};
 use crate::config::QueueBotConfig;
 use crate::db::{store_operation, OperationType};
 use crate::generator::list_category_members;
@@ -86,7 +86,7 @@ pub async fn reassignment<'to>(
         };
 
         replace_category_tag(&html, from, to);
-        replace_redirect_category_template(&html, from, to);
+        replace_category_of_redirects_template(&html, from, to);
 
         let (_, res) = {
             let result = page
