@@ -9,7 +9,7 @@ use ulid::Ulid;
 
 use super::{CommandStatus, OperationStatus};
 use crate::action::get_page_info;
-use crate::category::{replace_category_tag, replace_redirect_category_template};
+use crate::category::replace_category;
 use crate::config::QueueBotConfig;
 use crate::db::{store_operation, OperationType};
 use crate::generator::list_category_members;
@@ -17,7 +17,7 @@ use crate::is_emergency_stopped;
 
 #[tracing::instrument(skip(bot, config))]
 #[allow(clippy::too_many_arguments)]
-pub async fn reassignment<'to>(
+pub async fn reassignment(
     bot: &Bot,
     config: &QueueBotConfig,
     id: &Ulid,
@@ -85,8 +85,7 @@ pub async fn reassignment<'to>(
             continue;
         };
 
-        replace_category_tag(&html, from, to);
-        replace_redirect_category_template(&html, from, to);
+        replace_category(&html, from, to);
 
         let (_, res) = {
             let result = page

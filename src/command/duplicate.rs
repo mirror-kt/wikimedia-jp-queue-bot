@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::fmt::Debug;
 
 use indexmap::IndexMap;
@@ -7,7 +6,7 @@ use tracing::{info, warn};
 use ulid::Ulid;
 
 use super::CommandStatus;
-use crate::category::{replace_category_tag, replace_redirect_category_template};
+use crate::category::replace_category;
 use crate::command::OperationStatus;
 use crate::config::QueueBotConfig;
 use crate::db::{store_operation, OperationType};
@@ -19,12 +18,12 @@ pub async fn duplicate_category<'source, 'dest>(
     bot: &Bot,
     config: &QueueBotConfig,
     id: &Ulid,
-    source: impl Into<Cow<'source, str>> + Debug,
-    dest: impl Into<Cow<'dest, str>> + Debug,
+    source: impl Into<String> + Debug,
+    dest: impl Into<String> + Debug,
     discussion_link: impl AsRef<str> + Debug,
 ) -> CommandStatus {
-    let source: String = source.into().into_owned();
-    let dest: String = dest.into().into_owned();
+    let source = source.into();
+    let dest = dest.into();
     let to = &[source.clone(), dest.clone()];
     let discussion_link = discussion_link.as_ref();
 
@@ -46,8 +45,7 @@ pub async fn duplicate_category<'source, 'dest>(
         };
         let page_title = page.title().to_string();
 
-        replace_category_tag(&html, &source, to);
-        replace_redirect_category_template(&html, &source, to);
+        replace_category(&html, &source, to);
 
         let (_, res) = {
             let result = page
