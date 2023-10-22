@@ -1,6 +1,7 @@
 use mwbot::parsoid::prelude::*;
 
 mod category_of_redirects;
+mod image_wanted;
 
 /// カテゴリタグ(`[[Category:Example]]`)の置換
 /// `to` が空の場合、`from` のカテゴリを削除する
@@ -45,6 +46,7 @@ pub fn replace_category(html: &Wikicode, from: impl AsRef<str>, to: impl AsRef<[
 
     replace_category_tag(html, from, to);
     category_of_redirects::replace(html, from, to);
+    image_wanted::replace(html, from, to);
 }
 
 #[cfg(test)]
