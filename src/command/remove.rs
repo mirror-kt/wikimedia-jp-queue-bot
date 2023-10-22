@@ -6,7 +6,7 @@ use tracing::{info, warn};
 use ulid::Ulid;
 
 use super::{CommandStatus, OperationStatus};
-use crate::category::{replace_category_of_redirects_template, replace_category_tag};
+use crate::category::replace_category;
 use crate::config::QueueBotConfig;
 use crate::db::{store_operation, OperationType};
 use crate::generator::list_category_members;
@@ -42,8 +42,7 @@ pub async fn remove_category(
         };
         let page_title = page.title().to_string();
 
-        replace_category_tag(&html, category, &[]);
-        replace_category_of_redirects_template(&html, category, &[]);
+        replace_category(&html, category, &[]);
 
         let (_, res) = {
             let result = page
