@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use kuchiki::NodeRef;
 use mwbot::parsoid::prelude::*;
 
 pub trait IterExt {
@@ -38,21 +37,22 @@ pub trait IntoWikicode {
     fn as_wikicode(&self) -> Wikicode;
 }
 
-impl IntoWikicode for NodeRef {
-    fn as_wikicode(&self) -> Wikicode {
-        Wikicode::new_node(&self.to_string())
-    }
-}
-
 impl IntoWikicode for Wikinode {
     fn as_wikicode(&self) -> Wikicode {
-        Wikicode::new(&self.to_string())
+        let wikicode = Wikicode::new("");
+        wikicode.append(self);
+
+        wikicode
     }
 }
 
 impl IntoWikicode for Vec<Wikinode> {
     fn as_wikicode(&self) -> Wikicode {
-        Wikicode::new(&self.iter().map(|node| node.to_string()).collect::<String>())
+        let wikicode = Wikicode::new("");
+        self.iter().for_each(|c| {
+            wikicode.append(c);
+        });
+        wikicode
     }
 }
 
