@@ -19,7 +19,7 @@ chrono = { version = "0.4.31", default-features = false, features = [
     "clock",
 ] }
 config = { version = "0.13.3", default-features = false, features = ["toml"] }
-futures-util = "0.3.28"
+futures-util = "0.3.29"
 if_chain = "1.0.2"
 indexmap = "2.0.2"
 indexmap19 = { version = "1.9.3", package = "indexmap" } # for mwbot
