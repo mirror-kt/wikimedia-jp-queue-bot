@@ -88,8 +88,8 @@ pub fn replace(html: &Wikicode, from: impl AsRef<str>, to: impl AsRef<[String]>)
 #[cfg(test)]
 mod test {
     use indoc::indoc;
+    use mwbot::parsoid::WikinodeIterator;
 
-    use super::replace;
     use crate::util::test;
 
     #[tokio::test]
@@ -216,5 +216,19 @@ mod test {
 
         let replaced_wikicode = bot.parsoid().transform_to_wikitext(&html).await.unwrap();
         assert_eq!(after, replaced_wikicode);
+    }
+
+    #[tokio::test]
+    async fn test() {
+        let bot = test::bot().await;
+        let page = bot.page("伊達赤十字看護専門学校").unwrap();
+        let html = page.html().await.unwrap().into_mutable();
+
+        let templates = html.filter_templates().unwrap();
+
+        dbg!(templates
+            .iter()
+            .map(|t| (t.name(), t.params()))
+            .collect::<Vec<_>>());
     }
 }

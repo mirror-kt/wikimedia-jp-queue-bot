@@ -1,5 +1,2 @@
 [mysql]
-host = "127.0.0.1"
-port = 3306
-user = "queuebot"
-password = "password"
+connection_url = "mysql://queuebot:password@127.0.0.1:3306/queuebot?pool_min=0&pool_max=10&inactive_connection_ttl=1&ttl_check_interval=30"

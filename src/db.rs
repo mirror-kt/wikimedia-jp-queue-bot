@@ -1,6 +1,6 @@
 use anyhow::Context as _;
-use sqlx::mysql::MySqlConnectOptions;
-use sqlx::{Connection as _, Executor as _, MySqlConnection};
+use sqlx::{Executor as _, MySqlPool};
+use tokio::sync::OnceCell;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
 use ulid::Ulid;
@@ -8,21 +8,14 @@ use uuid::Uuid;
 
 use crate::config::MySqlConfig;
 
-pub async fn get_connection(config: &MySqlConfig) -> anyhow::Result<MySqlConnection> {
-    MySqlConnection::connect_with(
-        &MySqlConnectOptions::new()
-            .host(&config.host)
-            .port(config.port)
-            .username(&config.user)
-            .password(&config.password)
-            .database(&config.database),
-    )
-    .await
-    .context("could not get connection")
+static POOL: OnceCell<MySqlPool> = OnceCell::const_new();
+
+pub async fn init(config: &MySqlConfig) -> anyhow::Result<()> {
+    POOL.set(MySqlPool::connect(&config.connection_url).await?)?;
+    Ok(())
 }
 
 pub async fn store_command(
-    config: &MySqlConfig,
     command_id: &Ulid,
     command_type: CommandType,
     params: serde_json::Value,
@@ -31,10 +24,6 @@ pub async fn store_command(
     let retry_strategy = ExponentialBackoff::from_millis(5).map(jitter).take(3);
 
     Retry::spawn(retry_strategy, || async {
-        let mut conn = get_connection(config)
-            .await
-            .context("could not get connection")?;
-
         let query = sqlx::query!(
             "INSERT INTO commands VALUES (?, ?, ?)",
             command_id.as_bytes().as_slice(),
@@ -42,13 +31,11 @@ pub async fn store_command(
             params
         );
 
-        conn.execute(query)
-            .await
-            .context("could not execute query")?;
-
-        Ok(())
+        POOL.get().unwrap().execute(query).await
     })
     .await
+    .map(|_| ())
+    .context("could not execute query")
 }
 
 #[derive(sqlx::Type)]
@@ -62,7 +49,6 @@ pub enum CommandType {
 }
 
 pub async fn store_operation(
-    config: &MySqlConfig,
     command_id: &Ulid,
     operation_type: OperationType,
     page_id: u32,
@@ -74,9 +60,6 @@ pub async fn store_operation(
     let retry_strategy = ExponentialBackoff::from_millis(5).map(jitter).take(3);
 
     Retry::spawn(retry_strategy, || async {
-        let mut conn = get_connection(config)
-            .await
-            .context("could not get connection")?;
         let query = sqlx::query!(
             "INSERT INTO operations VALUES (?, ?, ?, ?, ?)",
             id.as_bytes().as_slice(),
@@ -86,13 +69,11 @@ pub async fn store_operation(
             new_revid
         );
 
-        conn.execute(query)
-            .await
-            .context("could not execute query")?;
-
-        Ok(())
+        POOL.get().unwrap().execute(query).await
     })
     .await
+    .map(|_| ())
+    .context("could not execute query")
 }
 
 #[derive(sqlx::Type)]
