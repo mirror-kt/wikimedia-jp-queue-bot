@@ -8,15 +8,13 @@ use ulid::Ulid;
 use super::CommandStatus;
 use crate::category::replace_category;
 use crate::command::OperationStatus;
-use crate::config::QueueBotConfig;
 use crate::db::{store_operation, OperationType};
 use crate::generator::list_category_members;
 use crate::is_emergency_stopped;
 
-#[tracing::instrument(skip(bot, config))]
+#[tracing::instrument(skip(bot))]
 pub async fn duplicate_category<'source, 'dest>(
     bot: &Bot,
-    config: &QueueBotConfig,
     id: &Ulid,
     source: impl Into<String> + Debug,
     dest: impl Into<String> + Debug,
@@ -45,7 +43,10 @@ pub async fn duplicate_category<'source, 'dest>(
         };
         let page_title = page.title().to_string();
 
-        replace_category(&html, &source, to);
+        if let Err(err) = replace_category(bot, &html, &source, to).await {
+            statuses.insert(page_title.clone(), OperationStatus::Error(err.to_string()));
+            continue;
+        }
 
         let (_, res) = {
             let result = page
@@ -72,14 +73,8 @@ pub async fn duplicate_category<'source, 'dest>(
             result.unwrap() // SAFETY: Err(_) is covered
         };
 
-        if let Err(err) = store_operation(
-            &config.mysql,
-            id,
-            OperationType::Duplicate,
-            res.pageid,
-            res.newrevid,
-        )
-        .await
+        if let Err(err) =
+            store_operation(id, OperationType::Duplicate, res.pageid, res.newrevid).await
         {
             warn!("{}", err);
             statuses.insert(

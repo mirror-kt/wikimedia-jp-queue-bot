@@ -12,7 +12,6 @@ use ulid::Ulid;
 use self::duplicate::duplicate_category;
 use self::reassignment::reassignment;
 use self::remove::remove_category;
-use crate::config::{MySqlConfig, QueueBotConfig};
 use crate::db::{store_command, CommandType};
 
 pub mod duplicate;
@@ -308,9 +307,9 @@ impl Command {
         anyhow!("議論が行われた場所を示すリンクが必要です.")
     }
 
-    pub async fn execute(&self, bot: &Bot, config: &QueueBotConfig) -> CommandStatus {
+    pub async fn execute(&self, bot: &Bot) -> CommandStatus {
         let id = Ulid::new();
-        if let Err(err) = self.insert_db(&id, &config.mysql).await {
+        if let Err(err) = self.insert_db(&id).await {
             warn!("{}", err);
             return CommandStatus::Error {
                 id,
@@ -324,30 +323,30 @@ impl Command {
                 from,
                 to,
                 discussion_link,
-            } => reassignment(bot, config, &id, from, to, discussion_link, true, true).await,
+            } => reassignment(bot, &id, from, to, discussion_link, true, true).await,
             Self::ReassignmentArticle {
                 from,
                 to,
                 discussion_link,
-            } => reassignment(bot, config, &id, from, to, discussion_link, true, false).await,
+            } => reassignment(bot, &id, from, to, discussion_link, true, false).await,
             Self::ReassignmentCategory {
                 from,
                 to,
                 discussion_link,
-            } => reassignment(bot, config, &id, from, to, discussion_link, false, true).await,
+            } => reassignment(bot, &id, from, to, discussion_link, false, true).await,
             Self::RemoveCategory {
                 category,
                 discussion_link,
-            } => remove_category(bot, config, &id, category, discussion_link).await,
+            } => remove_category(bot, &id, category, discussion_link).await,
             Self::DuplicateCategory {
                 source,
                 dest,
                 discussion_link,
-            } => duplicate_category(bot, config, &id, source, dest, discussion_link).await,
+            } => duplicate_category(bot, &id, source, dest, discussion_link).await,
         }
     }
 
-    async fn insert_db(&self, id: &Ulid, config: &MySqlConfig) -> anyhow::Result<()> {
+    async fn insert_db(&self, id: &Ulid) -> anyhow::Result<()> {
         let params = serde_json::to_value(self).context("could not serialize command")?;
 
         let command_type = match *self {
@@ -358,7 +357,7 @@ impl Command {
             Self::DuplicateCategory { .. } => CommandType::DuplicateCategory,
         };
 
-        store_command(config, id, command_type, params).await
+        store_command(id, command_type, params).await
     }
 }
 

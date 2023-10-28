@@ -10,16 +10,14 @@ use ulid::Ulid;
 use super::{CommandStatus, OperationStatus};
 use crate::action::get_page_info;
 use crate::category::replace_category;
-use crate::config::QueueBotConfig;
 use crate::db::{store_operation, OperationType};
 use crate::generator::list_category_members;
 use crate::is_emergency_stopped;
 
-#[tracing::instrument(skip(bot, config))]
+#[tracing::instrument(skip(bot))]
 #[allow(clippy::too_many_arguments)]
 pub async fn reassignment(
     bot: &Bot,
-    config: &QueueBotConfig,
     id: &Ulid,
     from: impl AsRef<str> + Debug + Display,
     to: impl AsRef<[String]> + Debug,
@@ -85,7 +83,10 @@ pub async fn reassignment(
             continue;
         };
 
-        replace_category(&html, from, to);
+        if let Err(err) = replace_category(bot, &html, from, to).await {
+            statuses.insert(page_title.clone(), OperationStatus::Error(err.to_string()));
+            continue;
+        }
 
         let (_, res) = {
             let result = page
@@ -118,14 +119,8 @@ pub async fn reassignment(
             result.unwrap() // SAFETY: Err(_) is covered
         };
 
-        if let Err(err) = store_operation(
-            &config.mysql,
-            id,
-            OperationType::Reassignment,
-            res.pageid,
-            res.newrevid,
-        )
-        .await
+        if let Err(err) =
+            store_operation(id, OperationType::Reassignment, res.pageid, res.newrevid).await
         {
             warn!("{}", err);
             statuses.insert(

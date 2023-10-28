@@ -18,9 +18,5 @@ pub struct QueueBotConfig {
 
 #[derive(Deserialize, Debug)]
 pub struct MySqlConfig {
-    pub host: String,
-    pub port: u16,
-    pub user: String,
-    pub password: String,
-    pub database: String,
+    pub connection_url: String,
 }
