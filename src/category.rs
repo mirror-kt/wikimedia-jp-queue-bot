@@ -1,4 +1,5 @@
 use mwbot::parsoid::prelude::*;
+use mwbot::Bot;
 
 mod category_of_redirects;
 mod image_wanted;
@@ -40,13 +41,20 @@ fn replace_category_tag(html: &Wikicode, from: impl AsRef<str>, to: impl AsRef<[
         });
 }
 
-pub fn replace_category(html: &Wikicode, from: impl AsRef<str>, to: impl AsRef<[String]>) {
+pub async fn replace_category(
+    bot: &Bot,
+    html: &Wikicode,
+    from: impl AsRef<str>,
+    to: impl AsRef<[String]>,
+) -> anyhow::Result<()> {
     let from = from.as_ref();
     let to = to.as_ref();
 
     replace_category_tag(html, from, to);
     category_of_redirects::replace(html, from, to);
-    image_wanted::replace(html, from, to);
+    image_wanted::replace(bot, html, from, to).await?;
+
+    Ok(())
 }
 
 #[cfg(test)]

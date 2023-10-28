@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
             }
         };
 
-        match command.execute(&bot, &config).await {
+        match command.execute(&bot).await {
             CommandStatus::Done { id, statuses } => {
                 send_command_message!(
                     Some(&id),

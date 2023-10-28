@@ -7,7 +7,6 @@ use ulid::Ulid;
 
 use super::{CommandStatus, OperationStatus};
 use crate::category::replace_category;
-use crate::config::QueueBotConfig;
 use crate::db::{store_operation, OperationType};
 use crate::generator::list_category_members;
 use crate::is_emergency_stopped;
@@ -15,7 +14,6 @@ use crate::is_emergency_stopped;
 #[tracing::instrument(skip(bot))]
 pub async fn remove_category(
     bot: &Bot,
-    config: &QueueBotConfig,
     id: &Ulid,
     category: impl AsRef<str> + Debug + Display,
     discussion_link: impl AsRef<str> + Debug + Display,
@@ -42,7 +40,10 @@ pub async fn remove_category(
         };
         let page_title = page.title().to_string();
 
-        replace_category(&html, category, &[]);
+        if let Err(err) = replace_category(bot, &html, category, &[]).await {
+            statuses.insert(page_title.clone(), OperationStatus::Error(err.to_string()));
+            continue;
+        }
 
         let (_, res) = {
             let result = page
@@ -69,14 +70,7 @@ pub async fn remove_category(
             result.unwrap() // SAFETY: Err(_) is covered
         };
 
-        if let Err(err) = store_operation(
-            &config.mysql,
-            id,
-            OperationType::Remove,
-            res.pageid,
-            res.newrevid,
-        )
-        .await
+        if let Err(err) = store_operation(id, OperationType::Remove, res.pageid, res.newrevid).await
         {
             warn!("{}", err);
             statuses.insert(
