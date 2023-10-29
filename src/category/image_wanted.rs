@@ -1,9 +1,8 @@
 use async_recursion::async_recursion;
+use futures_util::future::JoinAll;
 use indexmap19::IndexMap;
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
-
-use crate::util::JoinAllExt as _;
 
 const TEMPLATES: &[&str] = &[
     "Template:画像提供依頼",
@@ -62,7 +61,7 @@ async fn replace_recursion(
                 let bot = bot.clone();
                 tokio::spawn(async move { (bot.parsoid().transform_to_html(&v).await, k, v) })
             })
-            .join_all()
+            .collect::<JoinAll<_>>()
             .await
             .into_iter()
             .flat_map(|res| {
@@ -80,7 +79,7 @@ async fn replace_recursion(
                     }
                 }
             })
-            .join_all()
+            .collect::<JoinAll<_>>()
             .await
             .into_iter()
             .map(|res| {
@@ -96,7 +95,7 @@ async fn replace_recursion(
                     }
                 })
             })
-            .join_all()
+            .collect::<JoinAll<_>>()
             .await
             .into_iter()
             .map(|res| {
