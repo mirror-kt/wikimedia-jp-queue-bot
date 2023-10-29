@@ -1,7 +1,6 @@
 use std::future::Future;
 
 use chrono::{DateTime, Utc};
-use futures_util::future::{join_all, JoinAll};
 use mwbot::parsoid::prelude::*;
 
 pub trait IterExt {
@@ -73,23 +72,6 @@ pub struct UtcDateTimeProvider;
 impl DateTimeProvider for UtcDateTimeProvider {
     fn now(&self) -> DateTime<Utc> {
         Utc::now()
-    }
-}
-
-pub trait JoinAllExt {
-    type Output: Future;
-    fn join_all(self) -> JoinAll<Self::Output>;
-}
-
-impl<I> JoinAllExt for I
-where
-    I: IntoIterator,
-    I::Item: Future,
-{
-    type Output = I::Item;
-
-    fn join_all(self) -> JoinAll<Self::Output> {
-        join_all(self)
     }
 }
 
