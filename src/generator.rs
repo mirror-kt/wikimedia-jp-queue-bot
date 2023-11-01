@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
@@ -7,16 +6,16 @@ use mwbot::{Bot, Page, Result};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 /// カテゴリに所属する全ページを返す.
-/// [`mwbot::generators::CategoryMembers`] だけでは{{リダイレクトの所属カテゴリ}}などが取得できない.
-pub async fn list_category_members<'category>(
+/// [`CategoryMembers`] だけでは{{リダイレクトの所属カテゴリ}}などが取得できない.
+pub async fn list_category_members(
     bot: &Bot,
-    category: impl Into<Cow<'category, str>>,
+    category: impl Into<String>,
     include_article: bool,
     include_category: bool,
 ) -> Receiver<Result<Page>> {
     let (tx, rx) = mpsc::channel(50);
 
-    let category = category.into().into_owned();
+    let category = category.into();
     let bot = bot.clone();
 
     let mut namespaces = Vec::new();

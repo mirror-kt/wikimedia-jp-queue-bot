@@ -1,14 +1,11 @@
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 use indexmap::IndexMap;
-use indexmap19::indexmap as indexmap19;
-use mwbot::parsoid::prelude::*;
-use mwbot::{Bot, SaveOptions};
-use tracing::{info, warn};
+use mwbot::{Bot, Page, SaveOptions};
+use tracing::warn;
 use ulid::Ulid;
 
-use super::{CommandStatus, OperationStatus};
-use crate::action::get_page_info;
+use super::{CommandStatus, OperationResult, OperationStatus};
 use crate::category::replace_category;
 use crate::db::{store_operation, OperationType};
 use crate::generator::list_category_members;
@@ -19,7 +16,7 @@ use crate::is_emergency_stopped;
 pub async fn reassignment(
     bot: &Bot,
     id: &Ulid,
-    from: impl AsRef<str> + Debug + Display,
+    from: impl AsRef<str> + Debug,
     to: impl AsRef<[String]> + Debug,
     discussion_link: impl AsRef<str> + Debug,
     include_article: bool,
@@ -42,146 +39,75 @@ pub async fn reassignment(
             warn!("Error while getting: {:?}", page);
             continue;
         };
-        if page.is_category() && !include_category {
-            continue;
-        }
-        if !page.is_category() && !include_article {
-            continue;
-        }
-        let page_title = page.title().to_string();
-
-        let Ok(page_info) = get_page_info(bot, page.title()).await else {
-            warn!(
-                page = &page_title,
-                "{}", "ページのメタデータの取得に失敗しました"
-            );
-            statuses.insert(
-                page_title,
-                OperationStatus::Error("ページのメタデータの取得に失敗しました".to_string()),
-            );
-            continue;
-        };
-        // 対象ページが全保護されている場合はスキップ
-        if page_info
-            .protection
-            .iter()
-            .any(|protection| protection.type_ == *"edit" && protection.level == *"sysop")
-        {
-            warn!(
-                page = &page_title,
-                "ページが全保護されているため編集できませんでした"
-            );
-            statuses.insert(
-                page_title,
-                OperationStatus::Error("全保護されているため編集できませんでした".to_string()),
-            );
-            continue;
-        };
-
-        let Ok(html) = page.html().await.map(|html| html.into_mutable()) else {
-            warn!(page = &page_title, "Error while getting html");
-            continue;
-        };
-
-        if let Err(err) = replace_category(bot, &html, from, to).await {
-            statuses.insert(page_title.clone(), OperationStatus::Error(err.to_string()));
-            continue;
-        }
-
-        let (_, res) = {
-            let result = page
-                .save(
-                    html,
-                    &SaveOptions::summary(&format!(
-                        "BOT: [[:{}]]から{}へ変更 ([[{}|議論場所]]) (ID: {})",
-                        &from,
-                        &to.iter()
-                            .map(|cat| format!("[[:{}]]", cat))
-                            .collect::<Vec<_>>()
-                            .join(","),
-                        &discussion_link,
-                        id,
-                    )),
-                )
-                .await;
-            if let Err(err) = result {
-                warn!(page = &page_title, "ページの保存に失敗しました: {}", err);
-                statuses.insert(
-                    page_title,
-                    OperationStatus::Error("ページの保存に失敗しました".to_string()),
-                );
-                continue;
-            } else {
-                statuses.insert(page_title.clone(), OperationStatus::Reassignment);
-                info!(page = &page_title, "Done");
-            }
-
-            result.unwrap() // SAFETY: Err(_) is covered
-        };
-
-        if let Err(err) =
-            store_operation(id, OperationType::Reassignment, res.pageid, res.newrevid).await
-        {
-            warn!("{}", err);
-            statuses.insert(
-                page_title,
-                OperationStatus::Error(
-                    "データベースへのオペレーション保存に失敗しました".to_string(),
-                ),
-            );
-            continue;
-        };
+        statuses.insert(
+            page.title().to_string(),
+            process_page(bot, id, page, from, to, discussion_link).await,
+        );
     }
 
     if statuses.is_empty() {
         CommandStatus::Skipped
     } else {
-        try_add_speedy_deletion_template(bot, id, from, discussion_link, statuses).await
+        CommandStatus::Done { id: *id, statuses }
     }
 }
 
-async fn try_add_speedy_deletion_template(
+#[tracing::instrument(skip(page), fields(title = page.title()))]
+async fn process_page(
     bot: &Bot,
-    id: &Ulid,
+    command_id: &Ulid,
+    page: Page,
     from: &str,
+    to: &[String],
     discussion_link: &str,
-    statuses: IndexMap<String, OperationStatus>,
-) -> CommandStatus {
-    let mut category_members = list_category_members(bot, from, true, true).await;
-    if category_members.recv().await.is_none() {
-        let Ok(from_page) = bot.page(from) else {
-            warn!("Error while getting page: {:?}", from);
-            return CommandStatus::Error {
-                id: *id,
-                statuses,
-                message: "即時削除テンプレートの貼り付けの際、カテゴリページの取得に失敗しました"
-                    .to_string(),
-            };
-        };
-        let content = Wikicode::new("");
-        let template = &Template::new(
-            "即時削除",
-            &indexmap19! {
-                "1".to_string() => "カテゴリ6".to_string(),
-                "2".to_string() => format!("[[{}]]", discussion_link),
-            },
+) -> OperationResult {
+    let html = page
+        .html()
+        .await
+        .map(|html| html.into_mutable())
+        .map_err(|err| {
+            warn!(message = "ページの取得中にエラーが発生しました", err = ?err);
+            "ページの取得中にエラーが発生しました".to_string()
+        })?;
+
+    replace_category(bot, &html, from, to)
+        .await
+        .map_err(|err| {
+            warn!(message = "カテゴリの変更中にエラーが発生しました", err = ?err);
+            "カテゴリの変更中にエラーが発生しました".to_string()
+        })?;
+
+    let (_, res) = page
+        .save(
+            html,
+            &SaveOptions::summary(&format!(
+                "BOT: [[:{}]]から{}へ変更 ([[{}|議論場所]]) (ID: {})",
+                &from,
+                &to.iter()
+                    .map(|cat| format!("[[:{}]]", cat))
+                    .collect::<Vec<_>>()
+                    .join(","),
+                &discussion_link,
+                command_id,
+            )),
         )
-        .expect("unhappened");
-        content.append(template);
-        if let Err(err) = from_page
-            .save(content, &SaveOptions::summary("BOT: 即時削除 (カテゴリ6)"))
-            .await
-        {
-            warn!("Error while saving page: {:?}", err);
-            CommandStatus::Error {
-                id: *id,
-                statuses,
-                message: "カテゴリへの即時削除テンプレートの貼り付けに失敗しました".to_string(),
-            }
-        } else {
-            CommandStatus::Done { id: *id, statuses }
-        }
-    } else {
-        CommandStatus::Done { id: *id, statuses }
-    }
+        .await
+        .map_err(|err| {
+            warn!(message = "ページの保存に失敗しました", err = ?err);
+            "ページの保存に失敗しました".to_string()
+        })?;
+
+    store_operation(
+        command_id,
+        OperationType::Reassignment,
+        res.pageid,
+        res.newrevid,
+    )
+    .await
+    .map_err(|err| {
+        warn!(message = "データベースへのオペレーション保存に失敗しました", err = ?err);
+        "データベースへのオペレーション保存に失敗しました".to_string()
+    })?;
+
+    Ok(OperationStatus::Reassignment)
 }

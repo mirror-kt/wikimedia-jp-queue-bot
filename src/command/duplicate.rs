@@ -1,11 +1,11 @@
 use std::fmt::Debug;
 
 use indexmap::IndexMap;
-use mwbot::{Bot, SaveOptions};
-use tracing::{info, warn};
+use mwbot::{Bot, Page, SaveOptions};
+use tracing::warn;
 use ulid::Ulid;
 
-use super::CommandStatus;
+use super::{CommandStatus, OperationResult};
 use crate::category::replace_category;
 use crate::command::OperationStatus;
 use crate::db::{store_operation, OperationType};
@@ -13,15 +13,14 @@ use crate::generator::list_category_members;
 use crate::is_emergency_stopped;
 
 #[tracing::instrument(skip(bot))]
-pub async fn duplicate_category<'source, 'dest>(
+pub async fn duplicate_category(
     bot: &Bot,
     id: &Ulid,
     source: impl Into<String> + Debug,
     dest: impl Into<String> + Debug,
     discussion_link: impl AsRef<str> + Debug,
 ) -> CommandStatus {
-    let source = source.into();
-    let dest = dest.into();
+    let (source, dest) = (source.into(), dest.into());
     let to = &[source.clone(), dest.clone()];
     let discussion_link = discussion_link.as_ref();
 
@@ -37,54 +36,10 @@ pub async fn duplicate_category<'source, 'dest>(
             warn!("Error while searching: {:?}", page);
             continue;
         };
-        let Ok(html) = page.html().await.map(|html| html.into_mutable()) else {
-            warn!("Error while getting html: {:?}", page);
-            continue;
-        };
-        let page_title = page.title().to_string();
-
-        if let Err(err) = replace_category(bot, &html, &source, to).await {
-            statuses.insert(page_title.clone(), OperationStatus::Error(err.to_string()));
-            continue;
-        }
-
-        let (_, res) = {
-            let result = page
-                .save(
-                    html,
-                    &SaveOptions::summary(&format!(
-                        "BOT: [[:{}]]を [[:{}]]に複製 ([[{}|議論場所]]) (ID: {})",
-                        &source, &dest, discussion_link, id
-                    )),
-                )
-                .await;
-            if let Err(err) = result {
-                warn!(page = &page_title, "ページの保存に失敗しました: {}", err);
-                statuses.insert(
-                    page_title,
-                    OperationStatus::Error("ページの保存に失敗しました".to_string()),
-                );
-                continue;
-            } else {
-                statuses.insert(page_title.clone(), OperationStatus::Duplicate);
-                info!(page = &page_title, "Done");
-            }
-
-            result.unwrap() // SAFETY: Err(_) is covered
-        };
-
-        if let Err(err) =
-            store_operation(id, OperationType::Duplicate, res.pageid, res.newrevid).await
-        {
-            warn!("{}", err);
-            statuses.insert(
-                page_title,
-                OperationStatus::Error(
-                    "データベースへのオペレーション保存に失敗しました".to_string(),
-                ),
-            );
-            continue;
-        };
+        statuses.insert(
+            page.title().to_string(),
+            process_page(bot, id, page, &source, to, discussion_link).await,
+        );
     }
 
     if statuses.is_empty() {
@@ -92,4 +47,65 @@ pub async fn duplicate_category<'source, 'dest>(
     } else {
         CommandStatus::Done { id: *id, statuses }
     }
+}
+
+#[tracing::instrument(skip(page), fields(title = page.title()))]
+async fn process_page(
+    bot: &Bot,
+    command_id: &Ulid,
+    page: Page,
+    source: &str,
+    dest: &[String],
+    discussion_link: &str,
+) -> OperationResult {
+    let html = page
+        .html()
+        .await
+        .map(|html| html.into_mutable())
+        .map_err(|err| {
+            warn!(message = "ページの取得中にエラーが発生しました", err = ?err);
+            "ページの取得中にエラーが発生しました".to_string()
+        })?;
+
+    replace_category(bot, &html, &source, dest)
+        .await
+        .map_err(|err| {
+            warn!(message = "カテゴリの変更中にエラーが発生しました", err = ?err);
+            "カテゴリの変更中にエラーが発生しました".to_string()
+        })?;
+
+    let (_, res) = page
+        .save(
+            html,
+            &SaveOptions::summary(&format!(
+                "BOT: [[:{}]]を{}に複製 ([[{}|議論場所]]) (ID: {})",
+                &source,
+                &dest
+                    .iter()
+                    .map(|d| format!("[[:{d}]]"))
+                    .collect::<Vec<_>>()
+                    .join(","),
+                discussion_link,
+                command_id,
+            )),
+        )
+        .await
+        .map_err(|err| {
+            warn!(message = "ページの保存に失敗しました", err = ?err);
+            "ページの保存に失敗しました".to_string()
+        })?;
+
+    store_operation(
+        command_id,
+        OperationType::Duplicate,
+        res.pageid,
+        res.newrevid,
+    )
+    .await
+    .map_err(|err| {
+        warn!(message = "データベースへのオペレーション保存に失敗しました", err = ?err);
+        "データベースへのオペレーション保存に失敗しました".to_string()
+    })?;
+
+    Ok(OperationStatus::Duplicate)
 }

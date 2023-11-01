@@ -7,7 +7,7 @@ mod image_wanted;
 /// カテゴリタグ(`[[Category:Example]]`)の置換
 /// `to` が空の場合、`from` のカテゴリを削除する
 fn replace_category_tag(html: &Wikicode, from: impl AsRef<str>, to: impl AsRef<[String]>) {
-    let to = to.as_ref();
+    let (from, to) = (from.as_ref(), to.as_ref());
 
     let categories = html.filter_categories();
     let category_names = categories
@@ -17,7 +17,7 @@ fn replace_category_tag(html: &Wikicode, from: impl AsRef<str>, to: impl AsRef<[
 
     let Some(category_tag) = categories
         .iter()
-        .find(|category| category.category() == *from.as_ref())
+        .find(|category| category.category() == from)
     else {
         return;
     };
@@ -85,7 +85,7 @@ mod test {
             .unwrap()
             .into_mutable();
 
-        replace_category_tag(&wikicode, &from, &[to]);
+        replace_category_tag(&wikicode, &from, [to]);
 
         let replaced_wikicode = bot
             .parsoid()
