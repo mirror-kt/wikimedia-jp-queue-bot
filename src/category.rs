@@ -1,8 +1,9 @@
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
 
-mod category_of_redirects;
-mod image_wanted;
+use crate::category::template::category_of_redirects;
+
+mod template;
 
 /// カテゴリタグ(`[[Category:Example]]`)の置換
 /// `to` が空の場合、`from` のカテゴリを削除する
@@ -52,7 +53,11 @@ pub async fn replace_category(
 
     replace_category_tag(html, from, to);
     category_of_redirects::replace(html, from, to);
-    image_wanted::replace(bot, html, from, to).await?;
+    // 再帰的なテンプレートの変更
+    template::replace_recursion(bot, html, from, to, &|template_param, f, t| {
+        template::image_wanted::replace(template_param, f, t)
+    })
+    .await?;
 
     Ok(())
 }
