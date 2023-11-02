@@ -1,5 +1,6 @@
 use anyhow::Context as _;
-use sqlx::{Executor as _, MySqlPool};
+use sqlx::mysql::MySqlQueryResult;
+use sqlx::{Execute, Executor as _, MySql, MySqlPool};
 use tokio::sync::OnceCell;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
@@ -15,23 +16,33 @@ pub async fn init(config: &MySqlConfig) -> anyhow::Result<()> {
     Ok(())
 }
 
+async fn execute_query<'q, E: 'q>(query: impl Fn() -> E) -> anyhow::Result<MySqlQueryResult>
+where
+    E: Execute<'q, MySql>,
+{
+    let retry_strategy = ExponentialBackoff::from_millis(5).map(jitter).take(3);
+
+    Retry::spawn(retry_strategy, || async {
+        let query = query();
+        POOL.get().unwrap().execute(query).await
+    })
+    .await
+    .context("")
+}
+
 pub async fn store_command(
     command_id: &Ulid,
     command_type: CommandType,
     params: serde_json::Value,
 ) -> anyhow::Result<()> {
     let command_id: Uuid = (*command_id).into();
-    let retry_strategy = ExponentialBackoff::from_millis(5).map(jitter).take(3);
-
-    Retry::spawn(retry_strategy, || async {
-        let query = sqlx::query!(
+    execute_query(|| {
+        sqlx::query!(
             "INSERT INTO commands VALUES (?, ?, ?)",
             command_id.as_bytes().as_slice(),
             command_type,
             params
-        );
-
-        POOL.get().unwrap().execute(query).await
+        )
     })
     .await
     .map(|_| ())
@@ -57,19 +68,15 @@ pub async fn store_operation(
     let id: Uuid = Ulid::new().into();
     let command_id: Uuid = (*command_id).into();
 
-    let retry_strategy = ExponentialBackoff::from_millis(5).map(jitter).take(3);
-
-    Retry::spawn(retry_strategy, || async {
-        let query = sqlx::query!(
+    execute_query(|| {
+        sqlx::query!(
             "INSERT INTO operations VALUES (?, ?, ?, ?, ?)",
             id.as_bytes().as_slice(),
             command_id.as_bytes().as_slice(),
             operation_type,
             page_id,
             new_revid
-        );
-
-        POOL.get().unwrap().execute(query).await
+        )
     })
     .await
     .map(|_| ())

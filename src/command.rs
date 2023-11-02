@@ -366,14 +366,13 @@ pub enum CommandStatus {
     EmergencyStopped,
     Done {
         id: Ulid,
-        statuses: IndexMap<String, OperationStatus>,
+        statuses: IndexMap<String, OperationResult>,
     },
     /// Commandがエラーの場合
-    /// Operationがエラーの場合はOperationStatusで示す
     Error {
         id: Ulid,
         /// <title, status>
-        statuses: IndexMap<String, OperationStatus>,
+        statuses: IndexMap<String, OperationResult>,
         message: String,
     },
     Skipped,
@@ -384,8 +383,9 @@ pub enum OperationStatus {
     Reassignment,
     Remove,
     Duplicate,
-    Error(String),
 }
+
+pub type OperationResult = Result<OperationStatus, String>;
 
 #[cfg(test)]
 mod test {

@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-use command::OperationStatus;
 use indexmap::IndexMap;
 use indexmap19::indexmap as indexmap19;
 use mwbot::parsoid::prelude::*;
@@ -11,6 +10,7 @@ use tokio_retry::Retry;
 use tracing::warn;
 use ulid::Ulid;
 
+use crate::command::OperationResult;
 use crate::util::{DateTimeProvider, IntoWikicode as _, IterExt as _, UtcDateTimeProvider};
 
 pub mod action;
@@ -99,7 +99,7 @@ fn format_message<'i, I: WikinodeIterator, D: DateTimeProvider>(
     id: Option<&Ulid>,
     result: impl Into<String>,
     message: impl Into<String> + Display,
-    statuses: Option<IndexMap<String, OperationStatus>>,
+    statuses: Option<IndexMap<String, OperationResult>>,
     datetime_provider: D,
 ) -> &'i I {
     let botreq = Template::new(
@@ -114,7 +114,7 @@ fn format_message<'i, I: WikinodeIterator, D: DateTimeProvider>(
         statuses
             .iter()
             .filter_map(|(page, status)| {
-                if let OperationStatus::Error(err) = status {
+                if let Err(err) = status {
                     Some((page, err))
                 } else {
                     None
@@ -155,7 +155,7 @@ pub async fn send_command_message(
     section: &Section,
     result: impl Into<String>,
     message: impl Into<String> + Display,
-    statuses: Option<IndexMap<String, OperationStatus>>,
+    statuses: Option<IndexMap<String, OperationResult>>,
 ) -> anyhow::Result<Page> {
     let [result, message] = [result.into(), message.into()];
     let section = format_message(section, id, result, &message, statuses, UtcDateTimeProvider);
@@ -183,7 +183,6 @@ mod test {
     use mwbot::parsoid::Wikicode;
     use ulid::Ulid;
 
-    use crate::command::OperationStatus;
     use crate::util::test;
     use crate::{format_message, get_signature, DateTimeProvider};
 
@@ -257,8 +256,8 @@ mod test {
             "完了",
             "10件の操作が完了しました",
             Some(indexmap! {
-                "テスト".to_string() => OperationStatus::Error("これはエラーです".to_string()),
-                "テスト2".to_string() => OperationStatus::Error("これはエラーです2".to_string()),
+                "テスト".to_string() => Err("これはエラーです".to_string()),
+                "テスト2".to_string() => Err("これはエラーです2".to_string()),
             }),
             CustomDateTimeProvider(datetime),
         );

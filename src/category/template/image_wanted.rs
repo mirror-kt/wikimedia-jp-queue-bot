@@ -1,8 +1,5 @@
-use async_recursion::async_recursion;
-use futures_util::future::JoinAll;
 use indexmap19::IndexMap;
 use mwbot::parsoid::prelude::*;
-use mwbot::Bot;
 
 const TEMPLATES: &[&str] = &[
     "Template:画像提供依頼",
@@ -10,18 +7,12 @@ const TEMPLATES: &[&str] = &[
     "Template:画像改訂依頼",
 ];
 
-pub async fn replace(
-    bot: &Bot,
-    html: &Wikicode,
-    from: impl AsRef<str>,
-    to: impl AsRef<[String]>,
-) -> anyhow::Result<()> {
-    let from = from.as_ref();
-    let to = to.as_ref();
-
+/// Ok(true): テンプレートを書き換えたとき
+/// Ok(false): テンプレートを書き換えなかったとき
+pub fn replace(html: &Wikicode, from: &str, to: &[String]) -> anyhow::Result<bool> {
     if !from.ends_with("の画像提供依頼") || to.iter().any(|t| !t.ends_with("の画像提供依頼"))
     {
-        return Ok(());
+        return Ok(false);
     }
     let from = from
         .trim_start_matches("Category:")
@@ -31,94 +22,10 @@ pub async fn replace(
         .map(|t| {
             t.trim_start_matches("Category:")
                 .trim_end_matches("の画像提供依頼")
+                .to_string()
         })
         .collect::<Vec<_>>();
 
-    replace_recursion(bot, html, from, &to).await.map(|_| ())
-}
-
-/// Ok(true): `html` の引数を書き換えたとき
-#[async_recursion(?Send)]
-async fn replace_recursion(
-    bot: &Bot,
-    html: &Wikicode,
-    from: &str,
-    to: &[&str],
-) -> anyhow::Result<bool> {
-    let mut is_changed = replace_internal(html, from, to)?;
-
-    let templates = html.filter_templates()?;
-    if templates.is_empty() {
-        return Ok(is_changed);
-    }
-
-    for template in templates {
-        let params = template.params();
-
-        let new_params = params
-            .into_iter()
-            .map(|(k, v)| {
-                let bot = bot.clone();
-                tokio::spawn(async move { (bot.parsoid().transform_to_html(&v).await, k, v) })
-            })
-            .collect::<JoinAll<_>>()
-            .await
-            .into_iter()
-            .flat_map(|res| {
-                let (parsed_v, k, v) = res.unwrap(); // tokio panic handle
-                parsed_v
-                    .map(|parsed_v| (parsed_v, k.clone(), v.clone()))
-                    .map_err(|_err| (k, v))
-            })
-            .map(|(parsed_v, k, v)| {
-                let parsed_v = parsed_v.clone().into_mutable();
-                async move {
-                    match replace_recursion(bot, &parsed_v, from, to).await {
-                        Ok(true) => Ok((parsed_v.into_immutable(), k, v)),
-                        _ => Err((k, v)),
-                    }
-                }
-            })
-            .collect::<JoinAll<_>>()
-            .await
-            .into_iter()
-            .map(|res| {
-                let bot = bot.clone();
-                tokio::spawn(async move {
-                    match res {
-                        Ok((new_v, k, v)) => Ok((
-                            bot.parsoid().transform_to_wikitext(&new_v.clone()).await,
-                            k,
-                            v,
-                        )),
-                        Err((k, v)) => Err((k, v)),
-                    }
-                })
-            })
-            .collect::<JoinAll<_>>()
-            .await
-            .into_iter()
-            .map(|res| {
-                res.unwrap() // tokio panic handle
-            })
-            .map(|res| match res {
-                Ok((new_v, k, v)) => {
-                    is_changed = true;
-                    (k, new_v.unwrap_or(v))
-                }
-                Err((k, v)) => (k, v),
-            })
-            .collect::<IndexMap<String, String>>();
-
-        let _ = template.set_params(new_params);
-    }
-
-    Ok(is_changed)
-}
-
-/// Ok(true): テンプレートを書き換えたとき
-/// Ok(false): テンプレートを書き換えなかったとき
-fn replace_internal(html: &Wikicode, from: &str, to: &[&str]) -> anyhow::Result<bool> {
     let templates = html.filter_templates()?;
     let templates = templates
         .into_iter()
@@ -177,8 +84,10 @@ fn replace_internal(html: &Wikicode, from: &str, to: &[&str]) -> anyhow::Result<
 #[cfg(test)]
 mod test {
     use indoc::indoc;
+    use pretty_assertions::assert_eq;
 
     use super::replace;
+    use crate::category::template;
     use crate::util::test;
 
     #[tokio::test]
@@ -205,7 +114,7 @@ mod test {
             .unwrap()
             .into_mutable();
 
-        replace(&bot, &html, from, to).await.unwrap();
+        replace(&html, from, to).unwrap();
 
         let replaced_wikicode = bot.parsoid().transform_to_wikitext(&html).await.unwrap();
         assert_eq!(after, replaced_wikicode);
@@ -238,7 +147,7 @@ mod test {
             .unwrap()
             .into_mutable();
 
-        replace(&bot, &html, from, to).await.unwrap();
+        replace(&html, from, to).unwrap();
 
         let replaced_wikicode = bot.parsoid().transform_to_wikitext(&html).await.unwrap();
         assert_eq!(after, replaced_wikicode);
@@ -271,7 +180,7 @@ mod test {
             .unwrap()
             .into_mutable();
 
-        replace(&bot, &html, from, to).await.unwrap();
+        replace(&html, from, to).unwrap();
 
         let replaced_wikicode = bot.parsoid().transform_to_wikitext(&html).await.unwrap();
         assert_eq!(after, replaced_wikicode);
@@ -301,7 +210,7 @@ mod test {
             .unwrap()
             .into_mutable();
 
-        replace(&bot, &html, from, to).await.unwrap();
+        replace(&html, from, to).unwrap();
 
         let replaced_wikicode = bot.parsoid().transform_to_wikitext(&html).await.unwrap();
         assert_eq!(after, replaced_wikicode);
@@ -363,7 +272,9 @@ mod test {
             .unwrap()
             .into_mutable();
 
-        replace(&bot, &html, from, to).await.unwrap();
+        template::replace_recursion(&bot, &html, from, to, &replace)
+            .await
+            .unwrap();
 
         let replaced_wikicode = bot.parsoid().transform_to_wikitext(&html).await.unwrap();
         assert_eq!(after, replaced_wikicode);

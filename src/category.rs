@@ -1,13 +1,14 @@
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
 
-mod category_of_redirects;
-mod image_wanted;
+use crate::category::template::category_of_redirects;
+
+mod template;
 
 /// カテゴリタグ(`[[Category:Example]]`)の置換
 /// `to` が空の場合、`from` のカテゴリを削除する
 fn replace_category_tag(html: &Wikicode, from: impl AsRef<str>, to: impl AsRef<[String]>) {
-    let to = to.as_ref();
+    let (from, to) = (from.as_ref(), to.as_ref());
 
     let categories = html.filter_categories();
     let category_names = categories
@@ -17,7 +18,7 @@ fn replace_category_tag(html: &Wikicode, from: impl AsRef<str>, to: impl AsRef<[
 
     let Some(category_tag) = categories
         .iter()
-        .find(|category| category.category() == *from.as_ref())
+        .find(|category| category.category() == from)
     else {
         return;
     };
@@ -52,7 +53,11 @@ pub async fn replace_category(
 
     replace_category_tag(html, from, to);
     category_of_redirects::replace(html, from, to);
-    image_wanted::replace(bot, html, from, to).await?;
+    // 再帰的なテンプレートの変更
+    template::replace_recursion(bot, html, from, to, &|template_param, f, t| {
+        template::image_wanted::replace(template_param, f, t)
+    })
+    .await?;
 
     Ok(())
 }
@@ -85,7 +90,7 @@ mod test {
             .unwrap()
             .into_mutable();
 
-        replace_category_tag(&wikicode, &from, &[to]);
+        replace_category_tag(&wikicode, &from, [to]);
 
         let replaced_wikicode = bot
             .parsoid()
