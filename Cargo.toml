@@ -19,7 +19,7 @@ chrono = { version = "0.4.31", default-features = false, features = [
     "std",
     "clock",
 ] }
-config = { version = "0.13.3", default-features = false, features = ["toml"] }
+config = { version = "0.13.4", default-features = false, features = ["toml"] }
 futures-util = "0.3.29"
 if_chain = "1.0.2"
 indexmap = "2.1.0"
