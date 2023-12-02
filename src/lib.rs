@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use chrono::Locale;
 use indexmap::IndexMap;
 use indexmap19::indexmap as indexmap19;
 use mwbot::parsoid::prelude::*;
@@ -86,10 +87,11 @@ fn get_signature<D: DateTimeProvider>(datetime_provider: D) -> Wikicode {
         span.append(&Wikicode::new_text(")"))
     }
 
-    signature.append(&Wikicode::new_text(&format!(
-        " {} (UTC)",
-        current_datetime.format("%Y年%m月%d日 %H:%M")
-    )));
+    signature.append(&Wikicode::new_text(
+        &current_datetime
+            .format_localized(" %Y年%m月%d日 (%a) %H:%M (UTC)", Locale::ja_JP)
+            .to_string(),
+    ));
 
     signature
 }
@@ -208,7 +210,7 @@ mod test {
 
         assert_eq!(
             &wikitext,
-            r#"--[[User:QueueBot|QueueBot]]<small><span class="plainlinks">([[Special:Contributions/QueueBot|投稿]]/[{{fullurl:Special:Log/delete|user=QueueBot}} 削除]/[{{fullurl:Special:Log/move|user=QueueBot}} 移動])</span></small> 2023年10月17日 00:00 (UTC)"#
+            r#"--[[User:QueueBot|QueueBot]]<small><span class="plainlinks">([[Special:Contributions/QueueBot|投稿]]/[{{fullurl:Special:Log/delete|user=QueueBot}} 削除]/[{{fullurl:Special:Log/move|user=QueueBot}} 移動])</span></small> 2023年10月17日 (火) 00:00 (UTC)"#
         );
     }
 
@@ -239,7 +241,7 @@ mod test {
             indoc! {r#"
             {{BOTREQ|完了}}(ID: 01HCZ2CQPV5HW8NJAH6V1Z3KG9) 10件の操作が完了しました
         
-            --[[User:QueueBot|QueueBot]]<small><span class="plainlinks">([[Special:Contributions/QueueBot|投稿]]/[{{fullurl:Special:Log/delete|user=QueueBot}} 削除]/[{{fullurl:Special:Log/move|user=QueueBot}} 移動])</span></small> 2023年10月17日 00:00 (UTC)"#}
+            --[[User:QueueBot|QueueBot]]<small><span class="plainlinks">([[Special:Contributions/QueueBot|投稿]]/[{{fullurl:Special:Log/delete|user=QueueBot}} 削除]/[{{fullurl:Special:Log/move|user=QueueBot}} 移動])</span></small> 2023年10月17日 (火) 00:00 (UTC)"#}
         );
     }
 
@@ -275,7 +277,7 @@ mod test {
             
             # [[テスト]] - これはエラーです
             # [[テスト2]] - これはエラーです2
-            --[[User:QueueBot|QueueBot]]<small><span class="plainlinks">([[Special:Contributions/QueueBot|投稿]]/[{{fullurl:Special:Log/delete|user=QueueBot}} 削除]/[{{fullurl:Special:Log/move|user=QueueBot}} 移動])</span></small> 2023年10月17日 00:00 (UTC)"#}
+            --[[User:QueueBot|QueueBot]]<small><span class="plainlinks">([[Special:Contributions/QueueBot|投稿]]/[{{fullurl:Special:Log/delete|user=QueueBot}} 削除]/[{{fullurl:Special:Log/move|user=QueueBot}} 移動])</span></small> 2023年10月17日 (火) 00:00 (UTC)"#}
         );
     }
 }
