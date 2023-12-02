@@ -1,13 +1,12 @@
 use std::fmt::Display;
 
+use backon::{ExponentialBuilder, Retryable};
 use chrono::Locale;
 use indexmap::IndexMap;
 use indexmap19::indexmap as indexmap19;
 use mwbot::parsoid::prelude::*;
 use mwbot::{Bot, Page, SaveOptions};
 use tap::Tap as _;
-use tokio_retry::strategy::{jitter, ExponentialBackoff};
-use tokio_retry::Retry;
 use tracing::warn;
 use ulid::Ulid;
 
@@ -162,8 +161,7 @@ pub async fn send_command_message(
     let [result, message] = [result.into(), message.into()];
     let section = format_message(section, id, result, &message, statuses, UtcDateTimeProvider);
 
-    let retry_strategy = ExponentialBackoff::from_millis(5).map(jitter).take(3);
-    let (page, _) = Retry::spawn(retry_strategy, || async {
+    let save = || async {
         let page = page.clone();
         page.save(
             section.children().collect::<Vec<_>>().as_wikicode(),
@@ -171,8 +169,15 @@ pub async fn send_command_message(
                 .section(&format!("{}", section.section_id())),
         )
         .await
-    })
-    .await?;
+    };
+
+    let (page, _) = save
+        .retry(
+            &ExponentialBuilder::default()
+                .with_jitter()
+                .with_max_times(5),
+        )
+        .await?;
 
     Ok(page)
 }

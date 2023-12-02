@@ -1,9 +1,8 @@
 use anyhow::Context as _;
+use backon::{ExponentialBuilder, Retryable as _};
 use sqlx::mysql::MySqlQueryResult;
 use sqlx::{Execute, Executor as _, MySql, MySqlPool};
 use tokio::sync::OnceCell;
-use tokio_retry::strategy::{jitter, ExponentialBackoff};
-use tokio_retry::Retry;
 use ulid::Ulid;
 use uuid::Uuid;
 
@@ -20,14 +19,13 @@ async fn execute_query<'q, E: 'q>(query: impl Fn() -> E) -> anyhow::Result<MySql
 where
     E: Execute<'q, MySql>,
 {
-    let retry_strategy = ExponentialBackoff::from_millis(5).map(jitter).take(3);
+    let query = query();
 
-    Retry::spawn(retry_strategy, || async {
-        let query = query();
-        POOL.get().unwrap().execute(query).await
-    })
-    .await
-    .context("")
+    POOL.get()
+        .unwrap()
+        .execute(query)
+        .await
+        .context("could not execute query")
 }
 
 pub async fn store_command(
@@ -36,17 +34,26 @@ pub async fn store_command(
     params: serde_json::Value,
 ) -> anyhow::Result<()> {
     let command_id: Uuid = (*command_id).into();
-    execute_query(|| {
-        sqlx::query!(
-            "INSERT INTO commands VALUES (?, ?, ?)",
-            command_id.as_bytes().as_slice(),
-            command_type,
-            params
-        )
-    })
+    let save = || async {
+        execute_query(|| {
+            sqlx::query!(
+                "INSERT INTO commands VALUES (?, ?, ?)",
+                command_id.as_bytes().as_slice(),
+                command_type,
+                params
+            )
+        })
+        .await
+        .context("could not execute query")?;
+        Ok::<_, anyhow::Error>(())
+    };
+
+    save.retry(
+        &ExponentialBuilder::default()
+            .with_jitter()
+            .with_max_times(5),
+    )
     .await
-    .map(|_| ())
-    .context("could not execute query")
 }
 
 #[derive(sqlx::Type)]
@@ -63,24 +70,32 @@ pub async fn store_operation(
     command_id: &Ulid,
     operation_type: OperationType,
     page_id: u32,
-    new_revid: Option<u64>,
+    new_revid: u64,
 ) -> anyhow::Result<()> {
     let id: Uuid = Ulid::new().into();
     let command_id: Uuid = (*command_id).into();
+    let save = || async {
+        execute_query(|| {
+            sqlx::query!(
+                "INSERT INTO operations VALUES (?, ?, ?, ?, ?)",
+                id.as_bytes().as_slice(),
+                command_id.as_bytes().as_slice(),
+                operation_type,
+                page_id,
+                new_revid
+            )
+        })
+        .await
+        .context("could not execute query")?;
+        Ok::<_, anyhow::Error>(())
+    };
 
-    execute_query(|| {
-        sqlx::query!(
-            "INSERT INTO operations VALUES (?, ?, ?, ?, ?)",
-            id.as_bytes().as_slice(),
-            command_id.as_bytes().as_slice(),
-            operation_type,
-            page_id,
-            new_revid
-        )
-    })
+    save.retry(
+        &ExponentialBuilder::default()
+            .with_jitter()
+            .with_max_times(5),
+    )
     .await
-    .map(|_| ())
-    .context("could not execute query")
 }
 
 #[derive(sqlx::Type)]
