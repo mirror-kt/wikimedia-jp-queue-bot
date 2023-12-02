@@ -84,12 +84,14 @@ async fn process_page(
             "ページの保存に失敗しました".to_string()
         })?;
 
-    store_operation(command_id, OperationType::Remove, res.pageid, res.newrevid)
-        .await
-        .map_err(|err| {
-            warn!(message = "データベースへのオペレーション保存に失敗しました", err = ?err);
-            "データベースへのオペレーション保存に失敗しました".to_string()
-        })?;
+    if let Some(new_revid) = res.newrevid {
+        store_operation(command_id, OperationType::Remove, res.pageid, new_revid)
+            .await
+            .map_err(|err| {
+                warn!(message = "データベースへのオペレーション保存に失敗しました", err = ?err);
+                "データベースへのオペレーション保存に失敗しました".to_string()
+            })?;
+    }
 
     Ok(OperationStatus::Remove)
 }

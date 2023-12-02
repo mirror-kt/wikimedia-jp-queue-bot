@@ -63,7 +63,7 @@ pub async fn store_operation(
     command_id: &Ulid,
     operation_type: OperationType,
     page_id: u32,
-    new_revid: Option<u64>,
+    new_revid: u64,
 ) -> anyhow::Result<()> {
     let id: Uuid = Ulid::new().into();
     let command_id: Uuid = (*command_id).into();

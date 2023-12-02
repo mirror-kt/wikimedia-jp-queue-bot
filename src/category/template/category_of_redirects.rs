@@ -77,7 +77,6 @@ fn replace_category_of_redirects_template_complex(template: &Template, from: &st
     let redirect_pages = params
         .iter()
         .filter(|(k, _)| k.starts_with("redirect"))
-        .map(|(k, v)| (k, v))
         .collect::<Vec<_>>();
 
     for (redirect_str, redirect_page) in redirect_pages {
@@ -166,7 +165,7 @@ mod test {
             .unwrap()
             .into_mutable();
 
-        replace(&html, &from, &[to]);
+        replace(&html, &from, [to]);
 
         let replaced_wikicode = bot.parsoid().transform_to_wikitext(&html).await.unwrap();
         assert_eq!(after, replaced_wikicode);
