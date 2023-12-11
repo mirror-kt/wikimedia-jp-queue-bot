@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use mwbot::parsoid::prelude::*;
 
-pub trait IterExt {
+pub trait ListExt {
     /// 順序なしリスト
     fn collect_to_ul(self) -> Wikicode;
 
@@ -9,7 +9,7 @@ pub trait IterExt {
     fn collect_to_ol(self) -> Wikicode;
 }
 
-impl<T: Iterator<Item = Wikicode>> IterExt for T {
+impl<T: Iterator<Item = Wikicode>> ListExt for T {
     fn collect_to_ul(self) -> Wikicode {
         let wikicode = Wikicode::new_node("ul");
         self.for_each(|c| {
