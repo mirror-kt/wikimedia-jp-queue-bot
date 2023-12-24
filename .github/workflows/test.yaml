@@ -7,7 +7,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker compose up -d
-      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: giraffate/clippy-action@v1
         with:

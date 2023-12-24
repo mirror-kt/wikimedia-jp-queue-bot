@@ -383,6 +383,7 @@ pub enum OperationStatus {
     Reassignment,
     Remove,
     Duplicate,
+    Skipped,
 }
 
 pub type OperationResult = Result<OperationStatus, String>;

@@ -11,14 +11,14 @@ use tracing::warn;
 use ulid::Ulid;
 
 use crate::command::OperationResult;
-use crate::util::{DateTimeProvider, IntoWikicode as _, IterExt as _, UtcDateTimeProvider};
+use crate::util::{DateTimeProvider, IntoWikicode as _, ListExt as _, UtcDateTimeProvider};
 
 pub mod action;
-pub mod category;
 pub mod command;
 pub mod config;
 pub mod db;
 pub mod generator;
+pub mod replacer;
 pub mod util;
 
 pub const BOT_NAME: &str = "QueueBot";

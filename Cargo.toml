@@ -15,6 +15,7 @@ path = "src/bin/queue_consume.rs"
 [dependencies]
 anyhow = "1.0.76"
 async-recursion = "1.0.5"
+async-trait = "0.1.74"
 backon = "0.4.1"
 chrono = { version = "0.4.31", default-features = false, features = [
     "std",
@@ -22,6 +23,7 @@ chrono = { version = "0.4.31", default-features = false, features = [
     "unstable-locales",
 ] }
 config = { version = "0.13.4", default-features = false, features = ["toml"] }
+frunk_core = "0.4.2"
 futures-util = "0.3.30"
 if_chain = "1.0.2"
 indexmap = "2.1.0"

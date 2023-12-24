@@ -6,10 +6,10 @@ use tracing::warn;
 use ulid::Ulid;
 
 use super::{CommandStatus, OperationResult, OperationStatus};
-use crate::category::replace_category;
 use crate::db::{store_operation, OperationType};
 use crate::generator::list_category_members;
 use crate::is_emergency_stopped;
+use crate::replacer::{get_category_replacers, CategoryReplacerList};
 
 #[tracing::instrument(skip(bot))]
 #[allow(clippy::too_many_arguments)]
@@ -26,6 +26,8 @@ pub async fn reassignment(
     let to = to.as_ref();
     let discussion_link = discussion_link.as_ref();
 
+    let replacers = get_category_replacers(bot, from, to);
+
     let mut category_members =
         list_category_members(bot, from, include_article, include_category).await;
 
@@ -41,7 +43,7 @@ pub async fn reassignment(
         };
         statuses.insert(
             page.title().to_string(),
-            process_page(bot, id, page, from, to, discussion_link).await,
+            process_page(id, page, from, to, &replacers, discussion_link).await,
         );
     }
 
@@ -54,32 +56,30 @@ pub async fn reassignment(
 
 #[tracing::instrument(skip(page), fields(title = page.title()))]
 async fn process_page(
-    bot: &Bot,
     command_id: &Ulid,
     page: Page,
     from: &str,
     to: &[String],
+    replacers: &(impl CategoryReplacerList + Debug),
     discussion_link: &str,
 ) -> OperationResult {
-    let html = page
-        .html()
-        .await
-        .map(|html| html.into_mutable())
-        .map_err(|err| {
-            warn!(message = "ページの取得中にエラーが発生しました", err = ?err);
-            "ページの取得中にエラーが発生しました".to_string()
-        })?;
+    let html = page.html().await.map_err(|err| {
+        warn!(message = "ページの取得中にエラーが発生しました", err = ?err);
+        "ページの取得中にエラーが発生しました".to_string()
+    })?;
 
-    replace_category(bot, &html, from, to)
-        .await
-        .map_err(|err| {
-            warn!(message = "カテゴリの変更中にエラーが発生しました", err = ?err);
-            "カテゴリの変更中にエラーが発生しました".to_string()
-        })?;
+    let (replaced, is_changed) = replacers.replace_all(html).await.map_err(|err| {
+        warn!(message = "カテゴリの変更中にエラーが発生しました", err = ?err);
+        "カテゴリの変更中にエラーが発生しました".to_string()
+    })?;
+
+    if !is_changed {
+        return Ok(OperationStatus::Skipped);
+    }
 
     let (_, res) = page
         .save(
-            html,
+            replaced,
             &SaveOptions::summary(&format!(
                 "BOT: [[:{}]]から{}へ変更 ([[{}|議論場所]]) (ID: {})",
                 &from,
