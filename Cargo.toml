@@ -13,7 +13,7 @@ name = "queue_consume"
 path = "src/bin/queue_consume.rs"
 
 [dependencies]
-anyhow = "1.0.77"
+anyhow = "1.0.78"
 async-recursion = "1.0.5"
 async-trait = "0.1.76"
 backon = "0.4.1"
