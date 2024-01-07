@@ -238,6 +238,7 @@ dependencies = [
  "iana-time-zone",
  "num-traits",
  "pure-rust-locales",
+ "serde",
  "windows-targets",
 ]
 
@@ -847,6 +848,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "html5ever"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bea68cab48b8459f17cf1c944c67ddc572d272d9f2b274140f223ecb1da4a3b7"
+dependencies = [
+ "log",
+ "mac",
+ "markup5ever 0.11.0",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "http"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -986,7 +1001,6 @@ checksum = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99"
 dependencies = [
  "autocfg",
  "hashbrown 0.12.3",
- "serde",
 ]
 
 [[package]]
@@ -997,6 +1011,7 @@ checksum = "d530e1a18b1cb4c484e6e34556a0d948706958449fca0cab753d649f2bce3d1f"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.1",
+ "serde",
 ]
 
 [[package]]
@@ -1057,7 +1072,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ea8e9c6e031377cff82ee3001dc8026cdf431ed4e2e6b51f98ab8c73484a358"
 dependencies = [
  "cssparser",
- "html5ever",
+ "html5ever 0.25.2",
+ "matches",
+ "selectors",
+]
+
+[[package]]
+name = "kuchikiki"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f29e4755b7b995046f510a7520c42b2fed58b77bd94d5a87a8eb43d2fd126da8"
+dependencies = [
+ "cssparser",
+ "html5ever 0.26.0",
+ "indexmap 1.9.3",
  "matches",
  "selectors",
 ]
@@ -1233,12 +1261,11 @@ dependencies = [
 
 [[package]]
 name = "mwapi"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b5b17007ca0fdbc12f7720b4e9578213da0f80fd678b6f4bd8ff8705b307bcb"
+checksum = "6a8f461d3cccda28e941ec9c2377b9e50bf7138b84a874e69ef0c2013a1d3ca4"
 dependencies = [
  "js-sys",
- "mwapi_responses",
  "reqwest",
  "serde",
  "serde_json",
@@ -1255,9 +1282,21 @@ version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a146bdef725eb621b3e876c968fbfbcec07052d5d58be752422b6e7305aa656a"
 dependencies = [
- "mwapi_responses_derive",
+ "mwapi_responses_derive 0.3.4",
  "serde",
  "time",
+]
+
+[[package]]
+name = "mwapi_responses"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e3f0cabe34e3b8d3bd679986b74cd0a1fc8ee1c1af37a99925e34bd57b09955"
+dependencies = [
+ "mwapi",
+ "mwapi_responses_derive 0.4.1",
+ "mwtimestamp",
+ "serde",
 ]
 
 [[package]]
@@ -1274,16 +1313,30 @@ dependencies = [
 ]
 
 [[package]]
-name = "mwbot"
-version = "0.5.3"
+name = "mwapi_responses_derive"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8630719d7d4a3c7ef92a1e23f2a50a7732cf27ea9010c2b8cb72d7b99161b9d"
+checksum = "1f0f5c214c66d1d20b482f8b176545acf92033981f049656171ed121cdc220a4"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn 2.0.46",
+]
+
+[[package]]
+name = "mwbot"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9bd2541dc62753f72872960a187ec77b0b4ca48aaaea00ecdbe8af7064e204b"
 dependencies = [
  "dirs",
  "libc",
  "mwapi",
- "mwapi_responses",
+ "mwapi_responses 0.4.1",
  "mwbot_derive",
+ "mwtimestamp",
  "mwtitle",
  "once_cell",
  "parsoid",
@@ -1292,16 +1345,16 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
- "toml 0.7.6",
+ "toml 0.8.8",
  "tracing",
  "tracing-subscriber",
 ]
 
 [[package]]
 name = "mwbot_derive"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef7f1ea65276ab67396583e569bb9d57910e55a7e776bdac4bc59b4c11cee8a0"
+checksum = "ea3afd8634ecfc06aea0408ae86160ed79f635d25a9e6bf855df2b13eca03ee3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1309,10 +1362,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "mwtitle"
-version = "0.2.2"
+name = "mwtimestamp"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c0f488429997bc77a693a53b2977c53455819126590f555fe43fd1f4b4e059d"
+checksum = "17bb1c2935b8fb180f2285bbb14750bbcc0f72b2ed4383892e57a38635b10e7a"
+dependencies = [
+ "chrono",
+ "serde",
+]
+
+[[package]]
+name = "mwtitle"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "84435cfcb360542c8be82f7a832c92fe3bd7d9f11c79b407da6faee112ccc6f5"
 dependencies = [
  "bytemuck",
  "regex",
@@ -1476,14 +1539,14 @@ dependencies = [
 
 [[package]]
 name = "parsoid"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3a7d90af03ff8f55062316bf217d88a2e5e50a539e57db42b7d7af7e5d80867"
+checksum = "4ea48489456f51c8549a8d0955c2b0ba2ed73fd4ce95adf21b07700ebc46f7e4"
 dependencies = [
- "indexmap 1.9.3",
- "kuchiki",
+ "indexmap 2.1.0",
+ "kuchikiki",
  "lazy_static",
- "markup5ever 0.10.1",
+ "markup5ever 0.11.0",
  "percent-encoding",
  "reqwest",
  "serde",
@@ -2131,9 +2194,9 @@ dependencies = [
 
 [[package]]
 name = "serde_spanned"
-version = "0.6.3"
+version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96426c9936fd7a0124915f9185ea1d20aa9445cc9821142f0a73bc9207a2e186"
+checksum = "eb3622f419d1296904700073ea6cc23ad690adbd66f13ea683df73298736f0c1"
 dependencies = [
  "serde",
 ]
@@ -2745,9 +2808,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.7.6"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c17e963a819c331dcacd7ab957d80bc2b9a9c1e71c804826d2f283dd65306542"
+checksum = "a1a195ec8c9da26928f773888e0742ca3ca1040c6cd859c919c9f59c1954ab35"
 dependencies = [
  "serde",
  "serde_spanned",
@@ -2757,18 +2820,18 @@ dependencies = [
 
 [[package]]
 name = "toml_datetime"
-version = "0.6.3"
+version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cda73e2f1397b1262d6dfdcef8aafae14d1de7748d66822d3bfeeb6d03e5e4b"
+checksum = "3550f4e9685620ac18a50ed434eb3aec30db8ba93b0287467bca5826ea25baf1"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "toml_edit"
-version = "0.19.14"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8123f27e969974a3dfba720fdb560be359f57b44302d280ba72e76a74480e8a"
+checksum = "d34d383cd00a163b4a5b85053df514d45bc330f6de7737edfe0a93311d1eaa03"
 dependencies = [
  "indexmap 2.1.0",
  "serde",
@@ -3127,7 +3190,7 @@ dependencies = [
  "indoc",
  "kuchiki",
  "markup5ever 0.11.0",
- "mwapi_responses",
+ "mwapi_responses 0.3.4",
  "mwbot",
  "pretty_assertions",
  "serde",
