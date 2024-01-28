@@ -26,7 +26,7 @@ config = { version = "0.13.4", default-features = false, features = ["toml"] }
 frunk_core = "0.4.2"
 futures-util = "0.3.30"
 if_chain = "1.0.2"
-indexmap = "2.1.0"
+indexmap = "2.2.0"
 indexmap19 = { version = "1.9.3", package = "indexmap" } # for mwbot
 indoc = "2.0.4"
 kuchiki = "0.8.1"
