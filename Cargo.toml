@@ -22,7 +22,7 @@ chrono = { version = "0.4.33", default-features = false, features = [
     "clock",
     "unstable-locales",
 ] }
-config = { version = "0.13.4", default-features = false, features = ["toml"] }
+config = { version = "0.14.0", default-features = false, features = ["toml"] }
 frunk_core = "0.4.2"
 futures-util = "0.3.30"
 if_chain = "1.0.2"
