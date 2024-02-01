@@ -133,9 +133,9 @@ fn format_message<'i, I: WikinodeIterator, D: DateTimeProvider>(
             .collect_to_ol()
     });
 
-    let id = id.map(|id| format!("(ID: {id})").as_wikicode());
+    let id = id.map(|id| format!("(ID: {id})").into_wikicode());
 
-    let message = format!(" {message}").as_wikicode();
+    let message = format!(" {message}").into_wikicode();
     let signature = get_signature(datetime_provider);
 
     wikicode.append(&botreq);
@@ -165,7 +165,7 @@ pub async fn send_command_message(
     let save = || async {
         let page = page.clone();
         page.save(
-            section.children().collect::<Vec<_>>().as_wikicode(),
+            section.children().collect::<Vec<_>>().into_wikicode(),
             &SaveOptions::summary(&format!("BOT: {message}"))
                 .section(&format!("{}", section.section_id())),
         )

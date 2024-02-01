@@ -13,6 +13,10 @@ name = "queue_consume"
 path = "src/bin/queue_consume.rs"
 
 [[bin]]
+name = "discussion_list_generate"
+path = "src/bin/discussion_list_generate.rs"
+
+[[bin]]
 name = "rollback"
 path = "src/bin/rollback.rs"
 
@@ -54,6 +58,7 @@ tracing-subscriber = "0.3.18"
 ulid = { version = "1.1.2", features = ["uuid"] }
 uuid = "1.7.0"
 regex = "1.10.3"
+reqwest = { version = "0.11.24", features = ["json"] }
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"
