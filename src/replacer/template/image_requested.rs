@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use indexmap19::IndexMap;
+use indexmap::IndexMap;
 use mwbot::parsoid::prelude::*;
 
 use crate::replacer::CategoryReplacer;

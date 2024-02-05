@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use futures_util::{stream, Stream, StreamExt, TryStreamExt};
-use indexmap19::IndexMap;
+use indexmap::IndexMap;
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
 
