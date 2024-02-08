@@ -262,7 +262,7 @@ mod test {
         CommandType::Reassignment,
     )]
     #[case(
-    indoc!{"\
+        indoc!{"\
             == Bot: [[:Category:Name1]]を[[:Category:Name2]]と[[:Category:Name3]]へ ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
@@ -519,7 +519,7 @@ mod test {
         assert_eq!(command.to, to);
         assert_eq!(command.discussion_link, discussion_link);
         assert_eq!(command.namespaces, namespaces);
-        assert_eq!(command.operation_type, operation_type);
+        assert_eq!(command.command_type, command_type);
 
         command.execute().await;
 

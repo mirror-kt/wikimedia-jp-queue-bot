@@ -3186,6 +3186,7 @@ dependencies = [
  "mwapi_responses",
  "mwbot",
  "pretty_assertions",
+ "regex",
  "rstest",
  "serde",
  "serde_json",

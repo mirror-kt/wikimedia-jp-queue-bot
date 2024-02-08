@@ -1,6 +1,6 @@
 use anyhow::Context as _;
 use backon::{ExponentialBuilder, Retryable as _};
-use sqlx::{query, Executor as _, MySqlPool, QueryBuilder};
+use sqlx::{query, MySqlPool, QueryBuilder};
 use tap::Tap;
 use tokio::sync::OnceCell;
 use ulid::Ulid;
@@ -77,7 +77,7 @@ pub async fn store_command<R>(command: &Command<R>) -> anyhow::Result<()> {
     .await
 }
 
-#[derive(sqlx::Type, Debug)]
+#[derive(sqlx::Type, Debug, PartialEq)]
 #[sqlx(rename_all = "lowercase")]
 pub enum CommandType {
     Reassignment,
