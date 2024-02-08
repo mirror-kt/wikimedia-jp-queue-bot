@@ -12,9 +12,12 @@ path = "src/bin/daily_page_create.rs"
 name = "queue_consume"
 path = "src/bin/queue_consume.rs"
 
+[[bin]]
+name = "hotfix"
+path = "src/bin/hotfix.rs"
+
 [dependencies]
 anyhow = "1.0.79"
-async-recursion = "1.0.5"
 async-trait = "0.1.77"
 backon = "0.4.1"
 chrono = { version = "0.4.33", default-features = false, features = [
@@ -23,13 +26,10 @@ chrono = { version = "0.4.33", default-features = false, features = [
     "unstable-locales",
 ] }
 config = { version = "0.14.0", default-features = false, features = ["toml"] }
+derivative = "2.2.0"
 frunk_core = "0.4.2"
 futures-util = "0.3.30"
-if_chain = "1.0.2"
 indexmap = "2.2.2"
-indoc = "2.0.4"
-kuchiki = "0.8.1"
-markup5ever = "0.11.0"
 mwapi_responses = "0.4.2"
 mwbot = "0.6.1"
 serde = { version = "1.0.196", features = ["derive"] }
@@ -55,5 +55,6 @@ ulid = { version = "1.1.2", features = ["uuid"] }
 uuid = "1.7.0"
 
 [dev-dependencies]
-indoc = "2.0.4"
 pretty_assertions = "1.4.0"
+indoc = "2.0.4"
+rstest = "0.18.2"

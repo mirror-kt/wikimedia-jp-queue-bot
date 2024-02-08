@@ -6,19 +6,19 @@ use crate::replacer::CategoryReplacer;
 /// カテゴリタグ(`[[Category:Example]]`)の置換
 /// `to` が空の場合、`from` のカテゴリを削除する
 #[derive(Debug)]
-pub struct CategoryTagReplacer<'p> {
-    from: &'p str,
-    to: &'p [String],
+pub struct CategoryTagReplacer {
+    from: String,
+    to: Vec<String>,
 }
 
-impl<'p> CategoryTagReplacer<'p> {
-    pub fn new(from: &'p str, to: &'p [String]) -> Self {
+impl CategoryTagReplacer {
+    pub fn new(from: String, to: Vec<String>) -> Self {
         Self { from, to }
     }
 }
 
 #[async_trait]
-impl<'p> CategoryReplacer for CategoryTagReplacer<'p> {
+impl CategoryReplacer for CategoryTagReplacer {
     async fn replace(&self, html: ImmutableWikicode) -> anyhow::Result<Option<ImmutableWikicode>> {
         let html = html.into_mutable();
         let categories = html.filter_categories();
@@ -69,8 +69,8 @@ mod test {
     #[tokio::test]
     async fn test_replace_category_tag_one() -> anyhow::Result<()> {
         let bot = test::bot().await;
-        let from = "Category:Name1";
-        let to = &["Category:Name2".to_string()];
+        let from = "Category:Name1".to_string();
+        let to = vec!["Category:Name2".to_string()];
 
         let before = indoc! {"
             [[Category:Name1]]
@@ -81,7 +81,7 @@ mod test {
 
         let html = bot.parsoid().transform_to_html(before).await?;
 
-        let replacer = hlist![CategoryTagReplacer::new(from, to)];
+        let replacer = hlist![CategoryTagReplacer::new(from.to_string(), to)];
         let (replaced_html, is_changed) = replacer.replace_all(html).await?;
 
         assert!(is_changed);
@@ -96,8 +96,8 @@ mod test {
     #[tokio::test]
     async fn test_replace_category_tag_multiple() -> anyhow::Result<()> {
         let bot = test::bot().await;
-        let from = "Category:Name1";
-        let to = &["Category:Name2".to_string(), "Category:Name3".to_string()];
+        let from = "Category:Name1".to_string();
+        let to = vec!["Category:Name2".to_string(), "Category:Name3".to_string()];
 
         let before = indoc! {"
             [[Category:Name1]]
@@ -124,8 +124,8 @@ mod test {
     #[tokio::test]
     async fn test_remove_category_tag() -> anyhow::Result<()> {
         let bot = test::bot().await;
-        let from = "Category:Name1";
-        let to = &[];
+        let from = "Category:Name1".to_string();
+        let to = vec![];
 
         let before = indoc! {"
             [[Category:Name1]]

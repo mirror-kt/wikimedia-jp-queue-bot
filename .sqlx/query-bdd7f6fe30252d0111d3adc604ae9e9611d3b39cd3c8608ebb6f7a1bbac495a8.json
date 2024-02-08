@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "INSERT INTO commands (id, command_type, discussion_link) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "bdd7f6fe30252d0111d3adc604ae9e9611d3b39cd3c8608ebb6f7a1bbac495a8"
+}

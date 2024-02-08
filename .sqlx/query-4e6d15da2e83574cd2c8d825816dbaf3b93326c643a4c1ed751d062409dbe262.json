@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "INSERT INTO command_from_categories (command_id, category) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "4e6d15da2e83574cd2c8d825816dbaf3b93326c643a4c1ed751d062409dbe262"
+}

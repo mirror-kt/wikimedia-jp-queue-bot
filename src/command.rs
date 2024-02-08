@@ -1,363 +1,130 @@
-use std::cell::RefCell;
+use std::fmt::Debug;
 
-use anyhow::{anyhow, Context as _};
-use if_chain::if_chain;
+use derivative::Derivative;
 use indexmap::IndexMap;
 use mwbot::parsoid::prelude::*;
-use mwbot::Bot;
-use serde::{Deserialize, Serialize};
-use tracing::warn;
+use mwbot::{Bot, Page, SaveOptions};
+use tracing::{info, warn};
 use ulid::Ulid;
 
-use self::duplicate::duplicate_category;
-use self::reassignment::reassignment;
-use self::remove::remove_category;
-use crate::db::{store_command, CommandType};
+use crate::db::{store_command, store_operation, CommandType};
+use crate::generator::list_category_members;
+use crate::is_emergency_stopped;
+use crate::replacer::CategoryReplacerList;
 
-pub mod duplicate;
-pub mod reassignment;
-pub mod remove;
+pub mod parse;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub enum Command {
-    /// `from` に直属するすべてのページ(記事とカテゴリ)が `to` に再配属される.
-    ///
-    /// # コマンド例
-    /// - `Bot: [[Category:Name1]]を[[Category:Name2]]へ`
-    /// - `Bot: [[Category:Name1]]を[[Category:Name2]]と[[Category:Name3]]へ`
-    ReassignmentAll {
-        from: String,
-        to: Vec<String>,
-        discussion_link: String,
-    },
-    /// `from` に直属するすべての**記事**が `to` に再配属される.
-    ///
-    /// # コマンド例
-    /// - `Bot: (記事) [[Category:Name1]]を[[Category:Name2]]へ`
-    /// - `Bot: (記事) [[Category:Name1]]を[[Category:Name2]]と[[Category:Name3]]へ`
-    ReassignmentArticle {
-        from: String,
-        to: Vec<String>,
-        discussion_link: String,
-    },
-    /// `from` に直属するすべての**カテゴリ**が `to` に再配属される.
-    ///
-    /// # コマンド例
-    /// - `Bot: (カテゴリ) [[Category:Name1]]を[[Category:Name2]]へ`
-    /// - `Bot: (カテゴリ) [[Category:Name1]]を[[Category:Name2]]と[[Category:Name3]]へ`
-    ReassignmentCategory {
-        from: String,
-        to: Vec<String>,
-        discussion_link: String,
-    },
-    /// `from` に直属するすべてのページから、`from` へのカテゴリ参照を除去する.
-    ///
-    /// # コマンド例
-    /// - `Bot: [[Category:Name1]]を除去`
-    RemoveCategory {
-        category: String,
-        discussion_link: String,
-    },
-    /// `source` に直属するすべてのページを、`source` に残したまま `dest` にも両属させる.
-    ///
-    /// # コマンド例
-    /// - `Bot: [[Category:Name1]]を[[Category:Name2]]へ複製`
-    DuplicateCategory {
-        source: String,
-        dest: String,
-        discussion_link: String,
-    },
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub struct Command<R> {
+    bot: Bot,
+    dry_run: bool,
+    pub(crate) id: Ulid,
+    pub(crate) from: String,
+    pub(crate) to: Vec<String>,
+    pub(crate) discussion_link: String,
+    pub(crate) namespaces: Vec<u32>,
+    replacers: R,
+    #[derivative(Debug = "ignore")]
+    save_opts: SaveOptions,
+    pub(crate) command_type: CommandType,
 }
 
-impl Command {
-    pub async fn parse_command(section: &Section) -> anyhow::Result<Self> {
-        let nodes = section
-            .heading()
-            .unwrap() // SAFETY: not pseudo_section
-            .descendants()
-            .skip(1) // Wikicodeのまま入っている
-            .collect::<Vec<_>>();
-
-        let bot_prefix = nodes
-            .first()
-            .and_then(|first| first.as_text())
-            .ok_or_else(Self::invalid_command)?;
-        let bot_suffix = nodes
-            .last()
-            .and_then(|last| last.as_text())
-            .ok_or_else(Self::invalid_command)?;
-
-        let discussion_link = Self::get_section_discussion(section).await?;
-
-        Self::try_parse_reassignment_all_command(bot_prefix, bot_suffix, &nodes, &discussion_link)
-            .or_else(|| {
-                Self::try_parse_reassignment_article_command(
-                    bot_prefix,
-                    bot_suffix,
-                    &nodes,
-                    &discussion_link,
-                )
-            })
-            .or_else(|| {
-                Self::try_parse_reassignment_category_command(
-                    bot_prefix,
-                    bot_suffix,
-                    &nodes,
-                    &discussion_link,
-                )
-            })
-            .or_else(|| {
-                Self::try_parse_remove_category_command(
-                    bot_prefix,
-                    bot_suffix,
-                    &nodes,
-                    &discussion_link,
-                )
-            })
-            .or_else(|| {
-                Self::try_parse_duplicate_category_command(
-                    bot_prefix,
-                    bot_suffix,
-                    &nodes,
-                    &discussion_link,
-                )
-            })
-            .ok_or_else(Self::invalid_command)
-    }
-
-    fn try_parse_reassignment_all_command(
-        bot_prefix: &RefCell<String>,
-        bot_suffix: &RefCell<String>,
-        nodes: &[Wikinode],
-        discussion_link: &String,
-    ) -> Option<Self> {
-        if_chain! {
-            if bot_prefix.borrow().trim() == "Bot:";
-            if bot_suffix.borrow().trim() == "へ";
-            let nodes = &nodes[1..nodes.len() - 1];
-            if let Ok((from, to)) = Self::collect_from_to(nodes);
-            if !to.is_empty();
-            if to.len() <= 5;
-            if to.iter().all(|x| x.starts_with("Category:"));
-
-            then {
-                return Some(Self::ReassignmentAll { from, to, discussion_link: discussion_link.to_owned() });
-            }
-        }
-
-        None
-    }
-
-    fn try_parse_reassignment_article_command(
-        bot_prefix: &RefCell<String>,
-        bot_suffix: &RefCell<String>,
-        nodes: &[Wikinode],
-        discussion_link: &String,
-    ) -> Option<Self> {
-        if_chain! {
-            if bot_prefix.borrow().trim() == "Bot: (記事)";
-            if bot_suffix.borrow().trim() == "へ";
-            let nodes = &nodes[1..nodes.len() - 1];
-            if let Ok((from, to)) = Self::collect_from_to(nodes);
-            if !to.is_empty();
-            if to.len() <= 5;
-            if to.iter().all(|x| x.starts_with("Category:"));
-
-            then {
-                return Some(Self::ReassignmentArticle { from, to, discussion_link: discussion_link.to_owned() });
-            }
-        }
-
-        None
-    }
-
-    fn try_parse_reassignment_category_command(
-        bot_prefix: &RefCell<String>,
-        bot_suffix: &RefCell<String>,
-        nodes: &[Wikinode],
-        discussion_link: &String,
-    ) -> Option<Self> {
-        if_chain! {
-            if bot_prefix.borrow().trim() == "Bot: (カテゴリ)";
-            if bot_suffix.borrow().trim() == "へ";
-            let nodes = &nodes[1..nodes.len() - 1];
-            if let Ok((from, to)) = Self::collect_from_to(nodes);
-            if !to.is_empty();
-            if to.len() <= 5;
-            if to.iter().all(|x| x.starts_with("Category:"));
-
-            then {
-                return Some(Self::ReassignmentCategory { from, to, discussion_link: discussion_link.to_owned() });
-            }
-        }
-
-        None
-    }
-
-    fn try_parse_remove_category_command(
-        bot_prefix: &RefCell<String>,
-        bot_suffix: &RefCell<String>,
-        nodes: &[Wikinode],
-        discussion_link: &String,
-    ) -> Option<Self> {
-        if_chain! {
-            if bot_prefix.borrow().trim() == "Bot:";
-            if bot_suffix.borrow().trim() == "を除去";
-            let nodes = &nodes[1..nodes.len() - 1];
-            if nodes.len() == 2;
-            if let Some(wikilink) = nodes.first().and_then(|first| first.as_wikilink());
-            let category = wikilink.target();
-            if category.starts_with("Category:");
-
-            then {
-                return Some(Self::RemoveCategory { category, discussion_link: discussion_link.to_owned() });
-            }
-        }
-
-        None
-    }
-
-    fn try_parse_duplicate_category_command(
-        bot_prefix: &RefCell<String>,
-        bot_suffix: &RefCell<String>,
-        nodes: &[Wikinode],
-        discussion_link: &String,
-    ) -> Option<Self> {
-        if_chain! {
-            if bot_prefix.borrow().trim() == "Bot:";
-            if bot_suffix.borrow().trim() == "に複製";
-            let nodes = &nodes[1..nodes.len() - 1];
-            if let Ok((source, dest)) = Self::collect_from_to(nodes);
-            if dest.len() == 1;
-            if dest[0].starts_with("Category:");
-
-            then {
-                return Some(Self::DuplicateCategory { source, dest: dest[0].clone(), discussion_link: discussion_link.to_owned() });
-            }
-        }
-
-        None
-    }
-
-    // 〇〇を〇〇((と〇〇)?)+へ をパースする
-    fn collect_from_to(nodes: &[Wikinode]) -> anyhow::Result<(String, Vec<String>)> {
-        let from = nodes
-            .first()
-            .and_then(|first| first.as_wikilink())
-            .ok_or_else(Self::invalid_command)?
-            .target();
-
-        let nodes = &nodes[2..];
-        let separator = nodes
-            .first()
-            .and_then(|first| first.as_text())
-            .ok_or_else(Self::invalid_command)?;
-        if separator.borrow().trim() != "を" {
-            return Err(Self::invalid_command());
-        }
-
-        let nodes = &nodes[1..];
-        let to = nodes
-            // ["カテゴリ名", "と"]で区切る
-            // リンクの後に表示文字列が続くので3つずつ区切る
-            .chunks(3)
-            .map(|chunk| {
-                if chunk.len() != 3 {
-                    Ok(chunk[0]
-                        .as_wikilink()
-                        .ok_or_else(Self::invalid_command)?
-                        .target())
-                } else {
-                    if_chain! {
-                        if let Some(wikilink) = chunk[0].as_wikilink();
-                        let category = wikilink.target();
-                        if let Some(separator) = chunk[2].as_text();
-                        if separator.borrow().trim() == "と";
-
-                        then {
-                            Ok(category)
-                        } else {
-                            Err(Self::invalid_command())
-                        }
-                    }
-                }
-            })
-            .collect::<anyhow::Result<Vec<_>>>()?;
-
-        Ok((from, to))
-    }
-
-    fn invalid_command() -> anyhow::Error {
-        anyhow!("コマンド形式が不正です. コマンドを確認し修正してください.")
-    }
-
-    // 節に含まれる最初のリンクを取得する
-    async fn get_section_discussion(section: &Section) -> anyhow::Result<String> {
-        let link = section
-            .filter_links()
-            .iter()
-            .find(|link| !link.target().starts_with("Category:"))
-            .cloned()
-            .ok_or_else(Self::discussion_link_notfound)?;
-
-        Ok(link.target())
-    }
-
-    fn discussion_link_notfound() -> anyhow::Error {
-        anyhow!("議論が行われた場所を示すリンクが必要です.")
-    }
-
-    pub async fn execute(&self, bot: &Bot) -> CommandStatus {
-        let id = Ulid::new();
-        if let Err(err) = self.insert_db(&id).await {
-            warn!("{}", err);
+impl<R> Command<R>
+where
+    R: CategoryReplacerList + Debug,
+{
+    pub async fn execute(self) -> CommandStatus {
+        if let Err(err) = store_command(&self).await {
             return CommandStatus::Error {
-                id,
+                id: Ulid::new(),
                 statuses: IndexMap::new(),
-                message: "データベースへのID保存に失敗しました".to_string(),
+                message: format!("コマンドをデータベースに保存できませんでした: {:?}", err),
             };
         }
 
-        match self {
-            Self::ReassignmentAll {
-                from,
-                to,
-                discussion_link,
-            } => reassignment(bot, &id, from, to, discussion_link, true, true).await,
-            Self::ReassignmentArticle {
-                from,
-                to,
-                discussion_link,
-            } => reassignment(bot, &id, from, to, discussion_link, true, false).await,
-            Self::ReassignmentCategory {
-                from,
-                to,
-                discussion_link,
-            } => reassignment(bot, &id, from, to, discussion_link, false, true).await,
-            Self::RemoveCategory {
-                category,
-                discussion_link,
-            } => remove_category(bot, &id, category, discussion_link).await,
-            Self::DuplicateCategory {
-                source,
-                dest,
-                discussion_link,
-            } => duplicate_category(bot, &id, source, dest, discussion_link).await,
+        let mut category_members =
+            list_category_members(&self.bot, &self.from, self.namespaces.clone()).await;
+
+        let mut statuses = IndexMap::new();
+        while let Some(page) = category_members.recv().await {
+            if is_emergency_stopped(&self.bot).await {
+                return CommandStatus::EmergencyStopped;
+            }
+
+            let Ok(page) = page else {
+                warn!("Error while getting: {:?}", page);
+                continue;
+            };
+            statuses.insert(page.title().to_string(), self.process_page(page).await);
+        }
+
+        if statuses.is_empty() {
+            CommandStatus::Skipped
+        } else {
+            CommandStatus::Done {
+                id: self.id,
+                statuses,
+            }
         }
     }
 
-    async fn insert_db(&self, id: &Ulid) -> anyhow::Result<()> {
-        let params = serde_json::to_value(self).context("could not serialize command")?;
+    async fn process_page(&self, page: Page) -> OperationResult {
+        let html = page.html().await.map_err(|err| {
+            warn!(message = "ページの取得中にエラーが発生しました", err = ?err);
+            "ページの取得中にエラーが発生しました".to_string()
+        })?;
 
-        let command_type = match *self {
-            Self::ReassignmentAll { .. } => CommandType::ReassignmentAll,
-            Self::ReassignmentArticle { .. } => CommandType::ReassignmentArticle,
-            Self::ReassignmentCategory { .. } => CommandType::ReassignmentCategory,
-            Self::RemoveCategory { .. } => CommandType::RemoveCategory,
-            Self::DuplicateCategory { .. } => CommandType::DuplicateCategory,
+        let (replaced, is_changed) = self.replacers.replace_all(html).await.map_err(|err| {
+            warn!(message = "カテゴリの変更中にエラーが発生しました", err = ?err);
+            "カテゴリの変更中にエラーが発生しました".to_string()
+        })?;
+
+        if !is_changed {
+            return Ok(OperationStatus::Skipped);
+        }
+
+        self.save_page(page, replaced).await?;
+
+        Ok(OperationStatus::Done)
+    }
+
+    async fn save_page<S>(&self, page: Page, edit: S) -> Result<Page, String>
+    where
+        S: Into<ImmutableWikicode>,
+    {
+        if self.dry_run {
+            info!("No save was made due to dry-run");
+            return Ok(page);
+        }
+
+        let (page, res) = page
+            .save(edit.into(), &self.save_opts)
+            .await
+            .map_err(|err| {
+                warn!(message = "ページの保存に失敗しました", err = ?err);
+                "ページの保存に失敗しました".to_string()
+            })?;
+        self.store_operation_to_db(res.pageid, res.newrevid).await?;
+
+        Ok(page)
+    }
+
+    async fn store_operation_to_db(
+        &self,
+        page_id: u32,
+        new_rev_id: Option<u64>,
+    ) -> Result<(), String> {
+        let Some(new_rev_id) = new_rev_id else {
+            return Err("新しい版のIDを取得できませんでした".to_string());
         };
 
-        store_command(id, command_type, params).await
+        store_operation(&self.id, page_id, new_rev_id)
+            .await
+            .map_err(|err| {
+                warn!(message = "データベースへのオペレーション保存に失敗しました", err = ?err);
+                "データベースへのオペレーション保存に失敗しました".to_string()
+            })
     }
 }
 
@@ -380,139 +147,8 @@ pub enum CommandStatus {
 
 #[derive(Debug)]
 pub enum OperationStatus {
-    Reassignment,
-    Remove,
-    Duplicate,
+    Done,
     Skipped,
 }
 
 pub type OperationResult = Result<OperationStatus, String>;
-
-#[cfg(test)]
-mod test {
-    use indoc::indoc;
-    use mwbot::parsoid::prelude::*;
-
-    use super::Command;
-    use crate::util::test;
-
-    #[tokio::test]
-    async fn test_parse_command() {
-        let bot = test::bot().await;
-
-        let wikitext = indoc! {"
-            == Bot: [[:Category:Example]]を[[:Category:Example2]]へ ==
-            [[利用者:Misato Kano]]を参照
-
-            == Bot: [[:Category:Name1]]を[[:Category:Name2]]と[[:Category:Name3]]へ ==
-            [[利用者:Misato Kano]]を参照
-
-            == Bot: (記事) [[:Category:Name1]]を[[:Category:Name2]]へ ==
-            [[利用者:Misato Kano]]を参照
-
-            == Bot: (カテゴリ) [[:Category:Name1]]を[[:Category:Name2]]へ ==
-            [[利用者:Misato Kano]]を参照
-
-            == Bot: [[:Category:Name1]]を除去 ==
-            [[利用者:Misato Kano]]を参照
-
-            == Bot: [[:Category:Name1]]を[[:Category:Name2]]に複製 ==
-            [[利用者:Misato Kano]]を参照
-
-            == Bot: Category:ExampleをCategory:Example2へ ==
-            [[利用者:Misato Kano]]を参照
-
-            == Bot: [[:Category:Example]]を[[:Category:Example2]]へ ==
-            no link
-        "};
-
-        let html = bot
-            .parsoid()
-            .transform_to_html(wikitext)
-            .await
-            .unwrap()
-            .into_mutable();
-
-        let sections = html.iter_sections();
-
-        let result = futures_util::future::join_all(
-            sections
-                .iter()
-                .filter(|section| !section.is_pseudo_section())
-                .map(Command::parse_command)
-                .collect::<Vec<_>>(),
-        )
-        .await;
-
-        let command1 = result[0].as_ref().unwrap();
-        assert_eq!(
-            *command1,
-            Command::ReassignmentAll {
-                from: "Category:Example".to_string(),
-                to: vec!["Category:Example2".to_string()],
-                discussion_link: "利用者:Misato Kano".to_string(),
-            }
-        );
-
-        let command2 = result[1].as_ref().unwrap();
-        assert_eq!(
-            *command2,
-            Command::ReassignmentAll {
-                from: "Category:Name1".to_string(),
-                to: vec!["Category:Name2".to_string(), "Category:Name3".to_string()],
-                discussion_link: "利用者:Misato Kano".to_string(),
-            }
-        );
-
-        let command3 = result[2].as_ref().unwrap();
-        assert_eq!(
-            *command3,
-            Command::ReassignmentArticle {
-                from: "Category:Name1".to_string(),
-                to: vec!["Category:Name2".to_string()],
-                discussion_link: "利用者:Misato Kano".to_string(),
-            }
-        );
-
-        let command4 = result[3].as_ref().unwrap();
-        assert_eq!(
-            *command4,
-            Command::ReassignmentCategory {
-                from: "Category:Name1".to_string(),
-                to: vec!["Category:Name2".to_string()],
-                discussion_link: "利用者:Misato Kano".to_string(),
-            }
-        );
-
-        let command5 = result[4].as_ref().unwrap();
-        assert_eq!(
-            *command5,
-            Command::RemoveCategory {
-                category: "Category:Name1".to_string(),
-                discussion_link: "利用者:Misato Kano".to_string(),
-            }
-        );
-
-        let command6 = result[5].as_ref().unwrap();
-        assert_eq!(
-            *command6,
-            Command::DuplicateCategory {
-                source: "Category:Name1".to_string(),
-                dest: "Category:Name2".to_string(),
-                discussion_link: "利用者:Misato Kano".to_string(),
-            }
-        );
-
-        let command7 = result[6].as_ref().map_err(|err| err.to_string()).err();
-        assert_eq!(
-            command7,
-            Some("コマンド形式が不正です. コマンドを確認し修正してください.".to_string())
-        );
-
-        let command8 = result[7].as_ref().map_err(|err| err.to_string()).err();
-        assert_eq!(
-            command8,
-            Some("議論が行われた場所を示すリンクが必要です.".to_string())
-        );
-    }
-}

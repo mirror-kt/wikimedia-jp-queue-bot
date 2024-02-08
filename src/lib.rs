@@ -1,3 +1,5 @@
+#![feature(type_alias_impl_trait)]
+
 use std::fmt::Display;
 
 use backon::{ExponentialBuilder, Retryable};

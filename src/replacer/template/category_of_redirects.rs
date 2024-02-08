@@ -6,19 +6,19 @@ use tracing::warn;
 use crate::replacer::CategoryReplacer;
 
 #[derive(Debug)]
-pub struct CategoryOfRedirectsReplacer<'p> {
-    from: &'p str,
-    to: &'p [String],
+pub struct CategoryOfRedirectsReplacer {
+    from: String,
+    to: Vec<String>,
 }
 
-impl<'p> CategoryOfRedirectsReplacer<'p> {
-    pub fn new(from: &'p str, to: &'p [String]) -> Self {
+impl CategoryOfRedirectsReplacer {
+    pub fn new(from: String, to: Vec<String>) -> Self {
         Self { from, to }
     }
 }
 
 #[async_trait]
-impl<'p> CategoryReplacer for CategoryOfRedirectsReplacer<'p> {
+impl CategoryReplacer for CategoryOfRedirectsReplacer {
     async fn replace(&self, html: ImmutableWikicode) -> anyhow::Result<Option<ImmutableWikicode>> {
         Ok(self.replace_internal(html))
     }
@@ -37,7 +37,7 @@ trait Internal {
     fn replace_internal_complex(&self, template: &Template);
 }
 
-impl<'p> Internal for CategoryOfRedirectsReplacer<'p> {
+impl Internal for CategoryOfRedirectsReplacer {
     fn replace_internal(&self, html: ImmutableWikicode) -> Option<ImmutableWikicode> {
         let html = html.into_mutable();
 
@@ -74,7 +74,7 @@ impl<'p> Internal for CategoryOfRedirectsReplacer<'p> {
             .sorted_by(|k1, _, k2, _| k1.parse::<u32>().unwrap().cmp(&k2.parse::<u32>().unwrap()))
             .map(|(_k, v)| v)
             .collect::<Vec<_>>();
-        let Some(index) = params.iter().position(|param| param == self.from) else {
+        let Some(index) = params.iter().position(|param| *param == self.from) else {
             return;
         };
 
@@ -183,8 +183,8 @@ mod test {
     #[tokio::test]
     async fn test_replace_redirect_category_simple() -> anyhow::Result<()> {
         let bot = test::bot().await;
-        let from = "Category:Name1";
-        let to = &["Category:Name2".to_string()];
+        let from = "Category:Name1".to_string();
+        let to = vec!["Category:Name2".to_string()];
 
         let before = indoc! {"
             {{リダイレクトの所属カテゴリ|Category:Name1}}
@@ -209,8 +209,8 @@ mod test {
     #[tokio::test]
     async fn test_replace_redirect_category_simple_multiline() -> anyhow::Result<()> {
         let bot = test::bot().await;
-        let from = "Category:Name1";
-        let to = &["Category:Name2".to_string(), "Category:Name3".to_string()];
+        let from = "Category:Name1".to_string();
+        let to = vec!["Category:Name2".to_string(), "Category:Name3".to_string()];
 
         let before = indoc! {"
             {{リダイレクトの所属カテゴリ
@@ -237,8 +237,8 @@ mod test {
     #[tokio::test]
     async fn test_remove_redirect_category_simple() -> anyhow::Result<()> {
         let bot = test::bot().await;
-        let from = "Category:Name1";
-        let to = &[];
+        let from = "Category:Name1".to_string();
+        let to = vec![];
 
         let before = indoc! {"
             {{リダイレクトの所属カテゴリ
@@ -263,8 +263,8 @@ mod test {
     #[tokio::test]
     async fn test_replace_redirect_category_complex() -> anyhow::Result<()> {
         let bot = test::bot().await;
-        let from = "Category:アニメ作品 こ";
-        let to = &[
+        let from = "Category:アニメ作品 こ".to_string();
+        let to = vec![
             "Category:アニメ作品 ほげ".to_string(),
             "Category:アニメ作品 ふが".to_string(),
         ];
@@ -301,8 +301,8 @@ mod test {
     #[tokio::test]
     async fn test_remove_redirect_category_complex_one() -> anyhow::Result<()> {
         let bot = test::bot().await;
-        let from = "Category:アニメ作品 こ";
-        let to = &[];
+        let from = "Category:アニメ作品 こ".to_string();
+        let to = vec![];
 
         let before = indoc! {"
             {{リダイレクトの所属カテゴリ
@@ -334,8 +334,8 @@ mod test {
     #[tokio::test]
     async fn test_remove_redirect_category_complex_all() -> anyhow::Result<()> {
         let bot = test::bot().await;
-        let from = "Category:アニメ作品 こ";
-        let to = &[];
+        let from = "Category:アニメ作品 こ".to_string();
+        let to = vec![];
 
         let before = indoc! {"
             {{リダイレクトの所属カテゴリ

@@ -10,21 +10,12 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 pub async fn list_category_members(
     bot: &Bot,
     category: impl Into<String>,
-    include_article: bool,
-    include_category: bool,
+    namespaces: Vec<u32>,
 ) -> Receiver<Result<Page>> {
     let (tx, rx) = mpsc::channel(50);
 
     let category = category.into();
     let bot = bot.clone();
-
-    let mut namespaces = Vec::new();
-    if include_article {
-        namespaces.push(0); // 標準名前空間
-    }
-    if include_category {
-        namespaces.push(14); // Category名前空間
-    }
 
     let seen = Arc::new(Mutex::new(HashSet::<String>::new()));
 
