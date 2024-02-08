@@ -60,7 +60,7 @@ where
         }
 
         if statuses.is_empty() {
-            CommandStatus::Skipped
+            CommandStatus::CategoryEmpty
         } else {
             CommandStatus::Done {
                 id: self.id,
@@ -143,9 +143,10 @@ pub enum CommandStatus {
         message: String,
     },
     Skipped,
+    CategoryEmpty,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum OperationStatus {
     Done,
     Skipped,

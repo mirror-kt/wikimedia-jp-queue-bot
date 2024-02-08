@@ -2,7 +2,7 @@ use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
 use tracing::warn;
 use wikimedia_jp_queue_bot::command::parse::Parser;
-use wikimedia_jp_queue_bot::command::CommandStatus;
+use wikimedia_jp_queue_bot::command::{CommandStatus, OperationStatus};
 use wikimedia_jp_queue_bot::config::load_config;
 use wikimedia_jp_queue_bot::{db, send_command_message, QUEUE_PAGE};
 
@@ -82,7 +82,13 @@ async fn main() -> anyhow::Result<()> {
                     queue_page,
                     &queue,
                     "完了",
-                    &format!("{}件の操作を完了しました", statuses.len()),
+                    &format!(
+                        "{}件の操作を完了しました",
+                        statuses
+                            .iter()
+                            .filter(|(_page, result)| **result != Ok(OperationStatus::Skipped))
+                            .count()
+                    ),
                     Some(statuses)
                 );
             }
@@ -102,6 +108,16 @@ async fn main() -> anyhow::Result<()> {
                     "中止",
                     &message,
                     Some(statuses)
+                );
+            }
+            CommandStatus::CategoryEmpty => {
+                send_command_message!(
+                    None,
+                    queue_page,
+                    &queue,
+                    "不可能",
+                    "カテゴリに操作対象となる所属記事または所属カテゴリがありませんでした",
+                    None
                 );
             }
             CommandStatus::Skipped => {

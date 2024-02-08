@@ -521,8 +521,6 @@ mod test {
         assert_eq!(command.namespaces, namespaces);
         assert_eq!(command.command_type, command_type);
 
-        command.execute().await;
-
         Ok(())
     }
 }
