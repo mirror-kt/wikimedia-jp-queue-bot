@@ -1,7 +1,7 @@
 CREATE TABLE commands (
     id VARBINARY(16) PRIMARY KEY NOT NULL,
     command_type VARCHAR(20) NOT NULL,
-    discussion_link VARCHAR(60) NOT NULL
+    discussion_link VARCHAR(120) NOT NULL
 );
 
 CREATE TABLE command_target_namespaces (

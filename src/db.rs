@@ -54,15 +54,16 @@ pub async fn store_command<R>(command: &Command<R>) -> anyhow::Result<()> {
         .execute(&mut *tx)
         .await?;
 
-        let mut insert_to_categories_query = QueryBuilder::new(
-            "INSERT INTO command_to_categories (command_id, category) ",
-        )
-        .tap_mut(|builder| {
-            builder.push_values(&command.to, |mut b, to| {
-                b.push_bind(command_id).push_bind(to);
-            });
-        });
-        insert_to_categories_query.build().execute(&mut *tx).await?;
+        if !command.to.is_empty() {
+            let mut insert_to_categories_query =
+                QueryBuilder::new("INSERT INTO command_to_categories (command_id, category) ")
+                    .tap_mut(|builder| {
+                        builder.push_values(&command.to, |mut b, to| {
+                            b.push_bind(command_id).push_bind(to);
+                        });
+                    });
+            insert_to_categories_query.build().execute(&mut *tx).await?;
+        }
 
         tx.commit().await?;
 
