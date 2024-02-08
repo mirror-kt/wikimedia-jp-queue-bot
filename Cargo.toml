@@ -1,5 +1,5 @@
 [package]
-name = "wikimedia_jp_queue_bot"
+name = "queuebot"
 version = "0.1.0"
 edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -11,10 +11,6 @@ path = "src/bin/daily_page_create.rs"
 [[bin]]
 name = "queue_consume"
 path = "src/bin/queue_consume.rs"
-
-[[bin]]
-name = "hotfix"
-path = "src/bin/hotfix.rs"
 
 [dependencies]
 anyhow = "1.0.79"

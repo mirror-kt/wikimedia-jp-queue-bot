@@ -1,10 +1,10 @@
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
+use queuebot::command::parse::Parser;
+use queuebot::command::{CommandStatus, OperationStatus};
+use queuebot::config::load_config;
+use queuebot::{db, send_command_message, QUEUE_PAGE};
 use tracing::warn;
-use wikimedia_jp_queue_bot::command::parse::Parser;
-use wikimedia_jp_queue_bot::command::{CommandStatus, OperationStatus};
-use wikimedia_jp_queue_bot::config::load_config;
-use wikimedia_jp_queue_bot::{db, send_command_message, QUEUE_PAGE};
 
 macro_rules! send_command_message {
     ($id:expr, $queue_page:expr, $queue:expr, $result:expr, $message:expr, $statuses:expr) => {

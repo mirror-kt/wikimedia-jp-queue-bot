@@ -1755,6 +1755,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed02a829e62dc2715ceb8afb4f80e298148e1345749ceb369540fe0eb3368432"
 
 [[package]]
+name = "queuebot"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "backon",
+ "chrono",
+ "config",
+ "derivative",
+ "frunk_core",
+ "futures-util",
+ "indexmap 2.2.2",
+ "indoc",
+ "mwapi_responses",
+ "mwbot",
+ "pretty_assertions",
+ "regex",
+ "rstest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tap",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "ulid",
+ "uuid",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3168,36 +3198,6 @@ name = "whoami"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22fc3756b8a9133049b26c7f61ab35416c130e8c09b660f5b3958b446f52cc50"
-
-[[package]]
-name = "wikimedia_jp_queue_bot"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "backon",
- "chrono",
- "config",
- "derivative",
- "frunk_core",
- "futures-util",
- "indexmap 2.2.2",
- "indoc",
- "mwapi_responses",
- "mwbot",
- "pretty_assertions",
- "regex",
- "rstest",
- "serde",
- "serde_json",
- "sqlx",
- "tap",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "ulid",
- "uuid",
-]
 
 [[package]]
 name = "winapi"
