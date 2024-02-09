@@ -1,9 +1,10 @@
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
+use queuebot::command::parse::Parser;
+use queuebot::command::{CommandStatus, OperationStatus};
+use queuebot::config::load_config;
+use queuebot::{db, send_command_message, QUEUE_PAGE};
 use tracing::warn;
-use wikimedia_jp_queue_bot::command::{Command, CommandStatus};
-use wikimedia_jp_queue_bot::config::load_config;
-use wikimedia_jp_queue_bot::{db, send_command_message, QUEUE_PAGE};
 
 macro_rules! send_command_message {
     ($id:expr, $queue_page:expr, $queue:expr, $result:expr, $message:expr, $statuses:expr) => {
@@ -49,25 +50,45 @@ async fn main() -> anyhow::Result<()> {
         .collect::<Vec<_>>();
 
     for queue in queues {
-        let command = Command::parse_command(&queue).await;
-
-        let command = match command {
+        let parser = match Parser::new(bot.clone(), &queue, false) {
             Ok(command) => command,
             Err(err) => {
                 warn!(?err, "parsing error occurred");
-                send_command_message!(None, queue_page, &queue, "中止", &err.to_string(), None);
+                send_command_message!(None, queue_page, &queue, "不受理", &err.to_string(), None);
                 continue;
             }
         };
+        let Some(command) = parser.parse() else {
+            let section_name = queue
+                .heading()
+                .unwrap() // SAFETY: pseudo checked
+                .text_contents();
+            warn!(section_name = ?section_name, "Invalid command format");
+            send_command_message!(
+                None,
+                queue_page,
+                &queue,
+                "不受理",
+                "不明なコマンドです",
+                None
+            );
+            continue;
+        };
 
-        match command.execute(&bot).await {
+        match command.execute().await {
             CommandStatus::Done { id, statuses } => {
                 send_command_message!(
                     Some(&id),
                     queue_page,
                     &queue,
                     "完了",
-                    &format!("{}件の操作を完了しました", statuses.len()),
+                    &format!(
+                        "{}件の操作を完了しました",
+                        statuses
+                            .iter()
+                            .filter(|(_page, result)| **result != Ok(OperationStatus::Skipped))
+                            .count()
+                    ),
                     Some(statuses)
                 );
             }
@@ -87,6 +108,16 @@ async fn main() -> anyhow::Result<()> {
                     "中止",
                     &message,
                     Some(statuses)
+                );
+            }
+            CommandStatus::CategoryEmpty => {
+                send_command_message!(
+                    None,
+                    queue_page,
+                    &queue,
+                    "不可能",
+                    "カテゴリに操作対象となる所属記事または所属カテゴリがありませんでした",
+                    None
                 );
             }
             CommandStatus::Skipped => {

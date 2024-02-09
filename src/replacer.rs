@@ -72,16 +72,16 @@ where
     }
 }
 
-pub fn get_category_replacers<'p>(
-    bot: &Bot,
-    from: &'p str,
-    to: &'p [String],
-) -> impl CategoryReplacerList + Debug + 'p {
+pub fn get_category_replacers(
+    bot: Bot,
+    from: String,
+    to: Vec<String>,
+) -> impl CategoryReplacerList + Debug {
     hlist![RecursionReplacer::new(
-        bot.clone(),
+        bot,
         hlist![
-            CategoryTagReplacer::new(from, to),
-            CategoryOfRedirectsReplacer::new(from, to),
+            CategoryTagReplacer::new(from.clone(), to.clone()),
+            CategoryOfRedirectsReplacer::new(from.clone(), to.clone()),
             ImageRequestedReplacer::new(from, to),
         ],
     )]

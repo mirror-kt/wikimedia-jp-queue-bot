@@ -1,5 +1,5 @@
 [package]
-name = "wikimedia_jp_queue_bot"
+name = "queuebot"
 version = "0.1.0"
 edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -14,7 +14,6 @@ path = "src/bin/queue_consume.rs"
 
 [dependencies]
 anyhow = "1.0.79"
-async-recursion = "1.0.5"
 async-trait = "0.1.77"
 backon = "0.4.1"
 chrono = { version = "0.4.33", default-features = false, features = [
@@ -23,16 +22,12 @@ chrono = { version = "0.4.33", default-features = false, features = [
     "unstable-locales",
 ] }
 config = { version = "0.14.0", default-features = false, features = ["toml"] }
+derivative = "2.2.0"
 frunk_core = "0.4.2"
 futures-util = "0.3.30"
-if_chain = "1.0.2"
 indexmap = "2.2.2"
-indexmap19 = { version = "1.9.3", package = "indexmap" } # for mwbot
-indoc = "2.0.4"
-kuchiki = "0.8.1"
-markup5ever = "0.11.0"
-mwapi_responses = "0.3.4"
-mwbot = "0.5.3"
+mwapi_responses = "0.4.2"
+mwbot = "0.6.1"
 serde = { version = "1.0.196", features = ["derive"] }
 serde_json = "1.0.113"
 sqlx = { version = "0.7.3", features = [
@@ -54,7 +49,9 @@ tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 ulid = { version = "1.1.2", features = ["uuid"] }
 uuid = "1.7.0"
+regex = "1.9.1"
 
 [dev-dependencies]
-indoc = "2.0.4"
 pretty_assertions = "1.4.0"
+indoc = "2.0.4"
+rstest = "0.18.2"

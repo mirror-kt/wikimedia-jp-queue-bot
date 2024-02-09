@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use indexmap19::IndexMap;
+use indexmap::IndexMap;
 use mwbot::parsoid::prelude::*;
 
 use crate::replacer::CategoryReplacer;
@@ -11,13 +11,13 @@ const TEMPLATES: &[&str] = &[
 ];
 
 #[derive(Debug)]
-pub struct ImageRequestedReplacer<'p> {
-    from: &'p str,
+pub struct ImageRequestedReplacer {
+    from: String,
     to: Vec<String>,
 }
 
-impl<'p> ImageRequestedReplacer<'p> {
-    pub fn new(from: &'p str, to: &'p [String]) -> Option<Self> {
+impl ImageRequestedReplacer {
+    pub fn new(from: String, to: Vec<String>) -> Option<Self> {
         if !from.ends_with("の画像提供依頼") || to.iter().any(|t| !t.ends_with("の画像提供依頼"))
         {
             return None;
@@ -35,12 +35,15 @@ impl<'p> ImageRequestedReplacer<'p> {
             })
             .collect::<Vec<_>>();
 
-        Some(Self { from, to })
+        Some(Self {
+            from: from.to_string(),
+            to,
+        })
     }
 }
 
 #[async_trait]
-impl<'p> CategoryReplacer for ImageRequestedReplacer<'p> {
+impl CategoryReplacer for ImageRequestedReplacer {
     async fn replace(&self, html: ImmutableWikicode) -> anyhow::Result<Option<ImmutableWikicode>> {
         let html = html.into_mutable();
 
@@ -67,7 +70,7 @@ impl<'p> CategoryReplacer for ImageRequestedReplacer<'p> {
                 })
                 .collect::<Vec<_>>();
 
-            let Some(index) = cats.iter().position(|c| c == self.from) else {
+            let Some(index) = cats.iter().position(|c| *c == self.from) else {
                 return Ok(None);
             };
             cats.remove(index);
@@ -114,8 +117,8 @@ mod test {
     #[tokio::test]
     async fn test_replace() -> anyhow::Result<()> {
         let bot = test::bot().await;
-        let from = "Category:伊達市 (北海道)の画像提供依頼";
-        let to = &["Category:北海道伊達市の画像提供依頼".to_string()];
+        let from = "Category:伊達市 (北海道)の画像提供依頼".to_string();
+        let to = vec!["Category:北海道伊達市の画像提供依頼".to_string()];
 
         let before = indoc! {"
             {{画像提供依頼
@@ -144,8 +147,8 @@ mod test {
     #[tokio::test]
     async fn test_add() -> anyhow::Result<()> {
         let bot = test::bot().await;
-        let from = "Category:伊達市 (北海道)の画像提供依頼";
-        let to = &[
+        let from = "Category:伊達市 (北海道)の画像提供依頼".to_string();
+        let to = vec![
             "Category:北海道伊達市の画像提供依頼".to_string(),
             "Category:北海道の画像提供依頼".to_string(),
         ];
@@ -177,8 +180,8 @@ mod test {
     #[tokio::test]
     async fn test_duplicate() -> anyhow::Result<()> {
         let bot = test::bot().await;
-        let from = "Category:北海道伊達市の画像提供依頼";
-        let to = &[
+        let from = "Category:北海道伊達市の画像提供依頼".to_string();
+        let to = vec![
             "Category:北海道伊達市の画像提供依頼".to_string(),
             "Category:北海道の画像提供依頼".to_string(),
         ];
@@ -210,8 +213,8 @@ mod test {
     #[tokio::test]
     async fn test_remove() -> anyhow::Result<()> {
         let bot = test::bot().await;
-        let from = "Category:伊達市 (北海道)の画像提供依頼";
-        let to: &[String] = &[];
+        let from = "Category:伊達市 (北海道)の画像提供依頼".to_string();
+        let to = vec![];
 
         let before = indoc! {"
             {{画像提供依頼

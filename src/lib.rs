@@ -1,9 +1,10 @@
+#![feature(type_alias_impl_trait)]
+
 use std::fmt::Display;
 
 use backon::{ExponentialBuilder, Retryable};
 use chrono::Locale;
-use indexmap::IndexMap;
-use indexmap19::indexmap as indexmap19;
+use indexmap::{indexmap, IndexMap};
 use mwbot::parsoid::prelude::*;
 use mwbot::{Bot, Page, SaveOptions};
 use tap::Tap as _;
@@ -105,7 +106,7 @@ fn format_message<'i, I: WikinodeIterator, D: DateTimeProvider>(
 ) -> &'i I {
     let botreq = Template::new(
         "BOTREQ",
-        &indexmap19! {
+        &indexmap! {
             "1".to_string() => result.into(),
         },
     )

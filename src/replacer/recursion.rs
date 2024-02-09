@@ -1,13 +1,16 @@
 use async_trait::async_trait;
+use derivative::Derivative;
 use futures_util::{stream, Stream, StreamExt, TryStreamExt};
-use indexmap19::IndexMap;
+use indexmap::IndexMap;
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
 
 use crate::replacer::{CategoryReplacer, CategoryReplacerList};
 
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct RecursionReplacer<ReplacerList> {
+    #[derivative(Debug = "ignore")]
     bot: Bot,
     replacers: ReplacerList,
 }
@@ -176,8 +179,8 @@ mod tests {
     #[tokio::test]
     async fn test_nested_template() -> anyhow::Result<()> {
         let bot = test::bot().await;
-        let from = "Category:伊達市 (北海道)の画像提供依頼";
-        let to = &["Category:北海道伊達市の画像提供依頼".to_string()];
+        let from = "Category:伊達市 (北海道)の画像提供依頼".to_string();
+        let to = vec!["Category:北海道伊達市の画像提供依頼".to_string()];
 
         let before = indoc! {"
             {{専修学校
