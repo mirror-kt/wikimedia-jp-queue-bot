@@ -1014,9 +1014,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.2.2"
+version = "2.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "824b2ae422412366ba479e8111fd301f7b5faece8149317bb81925979a53f520"
+checksum = "233cf39063f058ea2caae4091bf4a3ef70a653afbc026f5c4a4135d114e3c177"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.1",
@@ -1502,7 +1502,7 @@ version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fab95986bac9fc8dc8ad4d8d5fba986232e0ae3d693a6a0cf705b3ba2e055056"
 dependencies = [
- "indexmap 2.2.2",
+ "indexmap 2.2.3",
  "kuchikiki",
  "lazy_static",
  "markup5ever",
@@ -1766,7 +1766,7 @@ dependencies = [
  "derivative",
  "frunk_core",
  "futures-util",
- "indexmap 2.2.2",
+ "indexmap 2.2.3",
  "indoc",
  "mwapi_responses",
  "mwbot",
@@ -2409,7 +2409,7 @@ dependencies = [
  "futures-util",
  "hashlink",
  "hex",
- "indexmap 2.2.2",
+ "indexmap 2.2.3",
  "log",
  "memchr",
  "once_cell",
@@ -2848,7 +2848,7 @@ version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "396e4d48bbb2b7554c944bde63101b5ae446cff6ec4a24227428f15eb72ef338"
 dependencies = [
- "indexmap 2.2.2",
+ "indexmap 2.2.3",
  "serde",
  "serde_spanned",
  "toml_datetime",
