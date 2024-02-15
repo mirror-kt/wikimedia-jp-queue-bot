@@ -1,6 +1,6 @@
 services:
   database:
-    image: mariadb:10.11.6
+    image: mariadb:10.11.7
     environment:
       - MARIADB_USER=queuebot
       - MARIADB_PASSWORD=password
