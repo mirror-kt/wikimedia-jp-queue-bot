@@ -22,10 +22,6 @@ impl CategoryReplacer for CategoryTagReplacer {
     async fn replace(&self, html: ImmutableWikicode) -> anyhow::Result<Option<ImmutableWikicode>> {
         let html = html.into_mutable();
         let categories = html.filter_categories();
-        let category_names = categories
-            .iter()
-            .map(|category| category.category())
-            .collect::<Vec<_>>();
 
         let Some(category_tag) = categories
             .iter()
@@ -44,13 +40,9 @@ impl CategoryReplacer for CategoryTagReplacer {
             return Ok(Some(html.into_immutable()));
         }
 
-        self.to[1..]
-            .iter()
-            // 既にカテゴリタグとして追加されていたら追加しない
-            .filter(|category| !category_names.contains(category))
-            .for_each(|category| {
-                category_tag.insert_after(&Category::new(category, None));
-            });
+        self.to[1..].iter().for_each(|category| {
+            category_tag.insert_after(&Category::new(category, None));
+        });
 
         Ok(Some(html.into_immutable()))
     }
@@ -141,6 +133,36 @@ mod test {
 
         let replaced_wikicode = bot.parsoid().transform_to_wikitext(&replaced_html).await?;
 
+        assert_eq!(after, replaced_wikicode);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_duplicate_tag() -> anyhow::Result<()> {
+        let bot = test::bot().await;
+        let from = "Category:東京都の区立図書館".to_string();
+        let to = vec![
+            "Category:日本の公共図書館".to_string(),
+            "Category:東京都の区立図書館".to_string(),
+        ];
+
+        let before = indoc! {"\
+            [[Category:東京都の区立図書館]]
+        "};
+        let after = indoc! {"\
+            [[Category:日本の公共図書館]]
+            [[Category:東京都の区立図書館]]
+        "};
+
+        let html = bot.parsoid().transform_to_html(before).await?;
+
+        let replacer = hlist![CategoryTagReplacer::new(from, to)];
+        let (replaced_html, is_changed) = replacer.replace_all(html).await?;
+
+        assert!(is_changed);
+
+        let replaced_wikicode = bot.parsoid().transform_to_wikitext(&replaced_html).await?;
         assert_eq!(after, replaced_wikicode);
 
         Ok(())

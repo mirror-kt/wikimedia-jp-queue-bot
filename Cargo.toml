@@ -12,6 +12,10 @@ path = "src/bin/daily_page_create.rs"
 name = "queue_consume"
 path = "src/bin/queue_consume.rs"
 
+[[bin]]
+name = "rollback"
+path = "src/bin/rollback.rs"
+
 [dependencies]
 anyhow = "1.0.79"
 async-trait = "0.1.77"
