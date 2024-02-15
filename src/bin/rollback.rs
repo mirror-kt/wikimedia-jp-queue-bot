@@ -1,9 +1,9 @@
 use std::env;
 
-use anyhow::Context;
-use futures_util::{Stream, StreamExt};
+use anyhow::Context as _;
+use futures_util::StreamExt as _;
 use mwbot::{Bot, SaveOptions};
-use sqlx::{query, Execute, Executor, FromRow, MySql, MySqlPool, QueryBuilder};
+use sqlx::{FromRow, MySql, MySqlPool, QueryBuilder};
 use ulid::Ulid;
 use uuid::Uuid;
 
@@ -16,7 +16,7 @@ async fn main() -> anyhow::Result<()> {
         .map(|arg| Ulid::from_string(&arg).context("could not parse ULID"))
         .collect::<anyhow::Result<Vec<_>>>()?
         .into_iter()
-        .map(|id| <Ulid as Into<Uuid>>::into(id))
+        .map(<Ulid as Into<Uuid>>::into)
         .collect::<Vec<_>>();
     let bot = Bot::from_default_config().await?;
     let save_opt = SaveOptions::summary("BOT: Undo operation");
@@ -44,7 +44,7 @@ async fn main() -> anyhow::Result<()> {
             }
         };
         let page = bot.page_from_id(operation.page_id as u64).await?;
-        let page_title = page.title();
+        let page_title = page.title().to_string();
         if let Err(err) = page.undo(operation.rev_id as u64, None, &save_opt).await {
             tracing::error!(title = page_title, err = ?err);
         }
