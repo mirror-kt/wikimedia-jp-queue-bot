@@ -34,20 +34,20 @@ impl<T: Iterator<Item = Wikicode>> ListExt for T {
 }
 
 pub trait IntoWikicode {
-    fn as_wikicode(&self) -> Wikicode;
+    fn into_wikicode(self) -> Wikicode;
 }
 
 impl IntoWikicode for Wikinode {
-    fn as_wikicode(&self) -> Wikicode {
+    fn into_wikicode(self) -> Wikicode {
         let wikicode = Wikicode::new("");
-        wikicode.append(self);
+        wikicode.append(&self);
 
         wikicode
     }
 }
 
 impl IntoWikicode for Vec<Wikinode> {
-    fn as_wikicode(&self) -> Wikicode {
+    fn into_wikicode(self) -> Wikicode {
         let wikicode = Wikicode::new("");
         self.iter().for_each(|c| {
             wikicode.append(c);
@@ -56,9 +56,18 @@ impl IntoWikicode for Vec<Wikinode> {
     }
 }
 
+impl IntoWikicode for Vec<Wikicode> {
+    fn into_wikicode(self) -> Wikicode {
+        let wikicode = Wikicode::new("");
+        self.iter().for_each(|c| wikicode.append(c));
+
+        wikicode
+    }
+}
+
 impl IntoWikicode for String {
-    fn as_wikicode(&self) -> Wikicode {
-        Wikicode::new_text(self)
+    fn into_wikicode(self) -> Wikicode {
+        Wikicode::new_text(&self)
     }
 }
 
