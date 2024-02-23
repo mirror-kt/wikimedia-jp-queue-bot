@@ -1,11 +1,10 @@
-use async_trait::async_trait;
 use mwbot::parsoid::prelude::*;
 
 use crate::replacer::CategoryReplacer;
 
 /// カテゴリタグ(`[[Category:Example]]`)の置換
 /// `to` が空の場合、`from` のカテゴリを削除する
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CategoryTagReplacer {
     from: String,
     to: Vec<String>,
@@ -17,7 +16,6 @@ impl CategoryTagReplacer {
     }
 }
 
-#[async_trait]
 impl CategoryReplacer for CategoryTagReplacer {
     async fn replace(&self, html: ImmutableWikicode) -> anyhow::Result<Option<ImmutableWikicode>> {
         let html = html.into_mutable();

@@ -183,6 +183,7 @@ fn parse_prefix_namespaces(prefix: &str) -> Option<Vec<u32>> {
 }
 
 const TO_ITEMS_MAX_COUNT: usize = 5;
+
 fn collect_from_to(nodes: &[Wikinode]) -> Option<(String, Vec<String>)> {
     let from = nodes.first()?.as_wikilink()?.target();
     if !from.starts_with("Category:") {
@@ -251,243 +252,243 @@ mod test {
     #[rstest]
     // ========== 再配属 (全名前空間) ==========
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: [[:Category:Name1]]を[[:Category:Name2]]へ ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[0, 14],
-        CommandType::Reassignment,
+    "Category:Name1",
+    & ["Category:Name2"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [0, 14],
+    CommandType::Reassignment,
     )]
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: [[:Category:Name1]]を[[:Category:Name2]]と[[:Category:Name3]]へ ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2", "Category:Name3"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[0, 14],
-        CommandType::Reassignment,
+    "Category:Name1",
+    & ["Category:Name2", "Category:Name3"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [0, 14],
+    CommandType::Reassignment,
     )]
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: [[:Category:Name1]]を[[:Category:Name2]]と[[:Category:Name3]]と[[:Category:Name4]]と[[:Category:Name5]]と[[:Category:Name6]]へ ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2", "Category:Name3", "Category:Name4", "Category:Name5", "Category:Name6"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[0, 14],
-        CommandType::Reassignment,
+    "Category:Name1",
+    & ["Category:Name2", "Category:Name3", "Category:Name4", "Category:Name5", "Category:Name6"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [0, 14],
+    CommandType::Reassignment,
     )]
     // ========== 再配属 (記事) ==========
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: (記事) [[:Category:Name1]]を[[:Category:Name2]]へ ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[0],
-        CommandType::Reassignment,
+    "Category:Name1",
+    & ["Category:Name2"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [0],
+    CommandType::Reassignment,
     )]
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: (記事) [[:Category:Name1]]を[[:Category:Name2]]と[[:Category:Name3]]へ ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2", "Category:Name3"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[0],
-        CommandType::Reassignment,
+    "Category:Name1",
+    & ["Category:Name2", "Category:Name3"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [0],
+    CommandType::Reassignment,
     )]
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: (記事) [[:Category:Name1]]を[[:Category:Name2]]と[[:Category:Name3]]と[[:Category:Name4]]と[[:Category:Name5]]と[[:Category:Name6]]へ ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2", "Category:Name3", "Category:Name4", "Category:Name5", "Category:Name6"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[0],
-        CommandType::Reassignment,
+    "Category:Name1",
+    & ["Category:Name2", "Category:Name3", "Category:Name4", "Category:Name5", "Category:Name6"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [0],
+    CommandType::Reassignment,
     )]
     // ========== 再配属 (カテゴリ) ==========
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: (カテゴリ) [[:Category:Name1]]を[[:Category:Name2]]へ ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[14],
-        CommandType::Reassignment,
+    "Category:Name1",
+    & ["Category:Name2"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [14],
+    CommandType::Reassignment,
     )]
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: (カテゴリ) [[:Category:Name1]]を[[:Category:Name2]]と[[:Category:Name3]]へ ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2", "Category:Name3"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[14],
-        CommandType::Reassignment,
+    "Category:Name1",
+    & ["Category:Name2", "Category:Name3"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [14],
+    CommandType::Reassignment,
     )]
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: (カテゴリ) [[:Category:Name1]]を[[:Category:Name2]]と[[:Category:Name3]]と[[:Category:Name4]]と[[:Category:Name5]]と[[:Category:Name6]]へ ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2", "Category:Name3", "Category:Name4", "Category:Name5", "Category:Name6"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[14],
-        CommandType::Reassignment,
+    "Category:Name1",
+    & ["Category:Name2", "Category:Name3", "Category:Name4", "Category:Name5", "Category:Name6"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [14],
+    CommandType::Reassignment,
     )]
     // ========== 複製 (全名前空間) ==========
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: [[:Category:Name1]]を[[:Category:Name2]]に複製 ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2", "Category:Name1"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[0, 14],
-        CommandType::Duplicate,
+    "Category:Name1",
+    & ["Category:Name2", "Category:Name1"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [0, 14],
+    CommandType::Duplicate,
     )]
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: [[:Category:Name1]]を[[:Category:Name2]]と[[:Category:Name3]]に複製 ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2", "Category:Name3", "Category:Name1"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[0, 14],
-        CommandType::Duplicate,
+    "Category:Name1",
+    & ["Category:Name2", "Category:Name3", "Category:Name1"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [0, 14],
+    CommandType::Duplicate,
     )]
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: [[:Category:Name1]]を[[:Category:Name2]]と[[:Category:Name3]]と[[:Category:Name4]]と[[:Category:Name5]]と[[:Category:Name6]]に複製 ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2", "Category:Name3", "Category:Name4", "Category:Name5", "Category:Name6", "Category:Name1"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[0, 14],
-        CommandType::Duplicate,
+    "Category:Name1",
+    & ["Category:Name2", "Category:Name3", "Category:Name4", "Category:Name5", "Category:Name6", "Category:Name1"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [0, 14],
+    CommandType::Duplicate,
     )]
     // ========== 複製 (記事) ==========
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: (記事) [[:Category:Name1]]を[[:Category:Name2]]に複製 ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2", "Category:Name1"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[0],
-        CommandType::Duplicate,
+    "Category:Name1",
+    & ["Category:Name2", "Category:Name1"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [0],
+    CommandType::Duplicate,
     )]
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: (記事) [[:Category:Name1]]を[[:Category:Name2]]と[[:Category:Name3]]に複製 ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2", "Category:Name3", "Category:Name1"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[0],
-        CommandType::Duplicate,
+    "Category:Name1",
+    & ["Category:Name2", "Category:Name3", "Category:Name1"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [0],
+    CommandType::Duplicate,
     )]
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: (記事) [[:Category:Name1]]を[[:Category:Name2]]と[[:Category:Name3]]と[[:Category:Name4]]と[[:Category:Name5]]と[[:Category:Name6]]に複製 ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2", "Category:Name3", "Category:Name4", "Category:Name5", "Category:Name6", "Category:Name1"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[0],
-        CommandType::Duplicate,
+    "Category:Name1",
+    & ["Category:Name2", "Category:Name3", "Category:Name4", "Category:Name5", "Category:Name6", "Category:Name1"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [0],
+    CommandType::Duplicate,
     )]
     // ========== 複製 (カテゴリ) ==========
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: (カテゴリ) [[:Category:Name1]]を[[:Category:Name2]]に複製 ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2", "Category:Name1"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[14],
-        CommandType::Duplicate,
+    "Category:Name1",
+    & ["Category:Name2", "Category:Name1"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [14],
+    CommandType::Duplicate,
     )]
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: (カテゴリ) [[:Category:Name1]]を[[:Category:Name2]]と[[:Category:Name3]]に複製 ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2", "Category:Name3", "Category:Name1"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[14],
-        CommandType::Duplicate,
+    "Category:Name1",
+    & ["Category:Name2", "Category:Name3", "Category:Name1"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [14],
+    CommandType::Duplicate,
     )]
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: (カテゴリ) [[:Category:Name1]]を[[:Category:Name2]]と[[:Category:Name3]]と[[:Category:Name4]]と[[:Category:Name5]]と[[:Category:Name6]]に複製 ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &["Category:Name2", "Category:Name3", "Category:Name4", "Category:Name5", "Category:Name6", "Category:Name1"],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[14],
-        CommandType::Duplicate,
+    "Category:Name1",
+    & ["Category:Name2", "Category:Name3", "Category:Name4", "Category:Name5", "Category:Name6", "Category:Name1"],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [14],
+    CommandType::Duplicate,
     )]
     // ========== 除去 (全名前空間) ==========
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: [[:Category:Name1]]を除去 ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &[],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[0, 14],
-        CommandType::Remove,
+    "Category:Name1",
+    & [],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [0, 14],
+    CommandType::Remove,
     )]
     // ========== 除去 (記事) ==========
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: (記事) [[:Category:Name1]]を除去 ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &[],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[0],
-        CommandType::Remove,
+    "Category:Name1",
+    & [],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [0],
+    CommandType::Remove,
     )]
     // ========== 除去 (カテゴリ) ==========
     #[case(
-        indoc!{"\
+    indoc ! {"\
             == Bot: (カテゴリ) [[:Category:Name1]]を除去 ==
             [[プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ|議論]]を参照。 --[[User:Example|Example]] ([[User talk:Example|Talk]])
         "},
-        "Category:Name1",
-        &[],
-        "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
-        &[14],
-        CommandType::Remove,
+    "Category:Name1",
+    & [],
+    "プロジェクト:カテゴリ関連/議論/yyyy年/mm月dd日#XYZ",
+    & [14],
+    CommandType::Remove,
     )]
     #[tokio::test]
     async fn test_parse_success(

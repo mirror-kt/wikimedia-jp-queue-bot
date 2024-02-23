@@ -1,6 +1,7 @@
 use std::fmt::Debug;
+use std::future::Future;
 
-use async_trait::async_trait;
+use derivative::Derivative;
 use frunk_core::hlist;
 use frunk_core::hlist::{HCons, HNil};
 use mwbot::parsoid::prelude::*;
@@ -15,12 +16,20 @@ mod category_tag;
 mod recursion;
 mod template;
 
-#[async_trait]
 pub trait CategoryReplacer: Send + Sync {
-    async fn replace(&self, html: ImmutableWikicode) -> anyhow::Result<Option<ImmutableWikicode>>;
+    fn replace(
+        &self,
+        html: ImmutableWikicode,
+    ) -> impl Future<Output = anyhow::Result<Option<ImmutableWikicode>>> + Send + Sync;
+
+    fn boxed(self) -> BoxedCategoryReplacer<Self>
+    where
+        Self: Sized,
+    {
+        BoxedCategoryReplacer::new(self)
+    }
 }
 
-#[async_trait]
 impl<Replacer> CategoryReplacer for Option<Replacer>
 where
     Replacer: CategoryReplacer,
@@ -33,17 +42,47 @@ where
     }
 }
 
-#[async_trait]
+#[derive(Derivative)]
+#[derivative(Clone)]
+pub struct BoxedCategoryReplacer<Replacer> {
+    #[derivative(Clone(bound = "Replacer: Clone"))]
+    inner: Replacer,
+}
+
+impl<Replacer> BoxedCategoryReplacer<Replacer>
+where
+    Replacer: CategoryReplacer,
+{
+    pub fn new(inner: Replacer) -> Self {
+        Self { inner }
+    }
+
+    pub fn into_inner(self) -> Replacer {
+        self.inner
+    }
+}
+
+impl<Replacer> CategoryReplacer for BoxedCategoryReplacer<Replacer>
+where
+    Replacer: CategoryReplacer,
+{
+    fn replace(
+        &self,
+        html: ImmutableWikicode,
+    ) -> impl Future<Output = anyhow::Result<Option<ImmutableWikicode>>> + Send + Sync {
+        Box::pin(self.inner.replace(html))
+    }
+}
+
 pub trait CategoryReplacerList: Send + Sync {
     /// If the result of the substitution is the same as the original ImmutableWikicode,
     /// the bool in the return tuple returns false
-    async fn replace_all(
+    fn replace_all(
         &self,
         html: ImmutableWikicode,
-    ) -> anyhow::Result<(ImmutableWikicode, bool)>;
+    ) -> impl Future<Output = anyhow::Result<(ImmutableWikicode, bool)>> + Send + Sync;
 }
 
-#[async_trait]
 impl CategoryReplacerList for HNil {
     async fn replace_all(
         &self,
@@ -53,7 +92,6 @@ impl CategoryReplacerList for HNil {
     }
 }
 
-#[async_trait]
 impl<Replacer, ReplacerList> CategoryReplacerList for HCons<Replacer, ReplacerList>
 where
     Replacer: CategoryReplacer,

@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use indexmap::IndexMap;
 use mwbot::parsoid::prelude::*;
 
@@ -10,7 +9,7 @@ const TEMPLATES: &[&str] = &[
     "Template:画像改訂依頼",
 ];
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImageRequestedReplacer {
     from: String,
     to: Vec<String>,
@@ -42,7 +41,6 @@ impl ImageRequestedReplacer {
     }
 }
 
-#[async_trait]
 impl CategoryReplacer for ImageRequestedReplacer {
     async fn replace(&self, html: ImmutableWikicode) -> anyhow::Result<Option<ImmutableWikicode>> {
         let html = html.into_mutable();

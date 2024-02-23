@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use indexmap::IndexMap;
 use mwbot::parsoid::prelude::*;
 use regex::Regex;
@@ -6,7 +5,7 @@ use tracing::warn;
 
 use crate::replacer::CategoryReplacer;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CategoryOfRedirectsReplacer {
     from: String,
     to: Vec<String>,
@@ -18,7 +17,6 @@ impl CategoryOfRedirectsReplacer {
     }
 }
 
-#[async_trait]
 impl CategoryReplacer for CategoryOfRedirectsReplacer {
     async fn replace(&self, html: ImmutableWikicode) -> anyhow::Result<Option<ImmutableWikicode>> {
         self.replace_internal(html)
