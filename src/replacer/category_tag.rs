@@ -21,149 +21,161 @@ impl CategoryTagReplacer {
 impl CategoryReplacer for CategoryTagReplacer {
     async fn replace(&self, html: ImmutableWikicode) -> anyhow::Result<Option<ImmutableWikicode>> {
         let html = html.into_mutable();
-        let categories = html.filter_categories();
+        let mut categories = html.filter_categories();
 
-        let Some(category_tag) = categories
+        let Some(index) = categories
             .iter()
-            .find(|category| category.category() == self.from)
+            .position(|cat| cat.category() == self.from)
         else {
             return Ok(None);
         };
+        let from = categories.remove(index);
 
-        if self.to.is_empty() {
-            category_tag.detach();
-            return Ok(Some(html.into_immutable()));
+        let mut changed = 0;
+        self.to
+            .iter()
+            .filter(|to| categories.iter().all(|cat| cat.category() != **to))
+            .map(|to| {
+                if self.from == *to {
+                    Category::new(to, from.sort_key().as_deref())
+                } else {
+                    Category::new(to, None)
+                }
+            })
+            .for_each(|to| {
+                from.insert_before(&to);
+                changed += 1;
+            });
+        from.detach();
+
+        if !self.to.contains(&self.from) && changed > 0 {
+            // 再配属の場合 追加したカテゴリが1つ以上の場合は変更がある
+            Ok(Some(html.into_immutable()))
+        } else if self.to.contains(&self.from) && changed > 1 {
+            // 複製の場合 複製元のカテゴリも1度除去されて再追加されるので、変更がない場合もカウントが1になる
+            Ok(Some(html.into_immutable()))
+        } else if self.to.is_empty() && changed == 0 {
+            // 除去の場合
+            Ok(Some(html.into_immutable()))
+        } else {
+            // 変更がない場合
+            Ok(None)
         }
-
-        category_tag.set_category(&self.to[0]);
-        if self.to.len() == 1 {
-            return Ok(Some(html.into_immutable()));
-        }
-
-        self.to[1..].iter().for_each(|category| {
-            category_tag.insert_after(&Category::new(category, None));
-        });
-
-        Ok(Some(html.into_immutable()))
     }
 }
 
 #[cfg(test)]
 mod test {
-    use frunk_core::hlist;
     use indoc::indoc;
     use pretty_assertions::assert_eq;
+    use rstest::rstest;
 
     use crate::replacer::category_tag::CategoryTagReplacer;
-    use crate::replacer::CategoryReplacerList;
+    use crate::replacer::CategoryReplacer;
     use crate::util::test;
 
-    #[tokio::test]
-    async fn test_replace_category_tag_one() -> anyhow::Result<()> {
-        let bot = test::bot().await;
-        let from = "Category:Name1".to_string();
-        let to = vec!["Category:Name2".to_string()];
-
-        let before = indoc! {"
+    #[rstest]
+    // Simple reassignment categories
+    #[case(
+        "Category:Name1",
+        &["Category:Name2"],
+        indoc ! {"\
             [[Category:Name1]]
-        "};
-        let after = indoc! {"
+        "},
+        indoc ! {"\
             [[Category:Name2]]
-        "};
-
-        let html = bot.parsoid().transform_to_html(before).await?;
-
-        let replacer = hlist![CategoryTagReplacer::new(from.to_string(), to)];
-        let (replaced_html, is_changed) = replacer.replace_all(html).await?;
-
-        assert!(is_changed);
-
-        let replaced_wikicode = bot.parsoid().transform_to_wikitext(&replaced_html).await?;
-
-        assert_eq!(after, replaced_wikicode);
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_replace_category_tag_multiple() -> anyhow::Result<()> {
-        let bot = test::bot().await;
-        let from = "Category:Name1".to_string();
-        let to = vec!["Category:Name2".to_string(), "Category:Name3".to_string()];
-
-        let before = indoc! {"
+        "},
+        true,
+    )]
+    #[case(
+        "Category:Name1",
+        &["Category:Name2", "Category:Name3"],
+        indoc! {"\
             [[Category:Name1]]
-        "};
-        let after = indoc! {"
+        "},
+        indoc! {"\
             [[Category:Name2]]
             [[Category:Name3]]
-        "};
-
-        let html = bot.parsoid().transform_to_html(before).await?;
-
-        let replacer = hlist![CategoryTagReplacer::new(from, to)];
-        let (replaced_html, is_changed) = replacer.replace_all(html).await?;
-
-        assert!(is_changed);
-
-        let replaced_wikicode = bot.parsoid().transform_to_wikitext(&replaced_html).await?;
-
-        assert_eq!(after, replaced_wikicode);
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_remove_category_tag() -> anyhow::Result<()> {
-        let bot = test::bot().await;
-        let from = "Category:Name1".to_string();
-        let to = vec![];
-
-        let before = indoc! {"
+        "},
+        true,
+    )]
+    // noop when category is already added
+    #[case(
+        "Category:Name1",
+        &["Category:Name2"],
+        indoc!{"\
             [[Category:Name1]]
-        "};
-        let after = "";
-
-        let html = bot.parsoid().transform_to_html(before).await?;
-
-        let replacer = hlist![CategoryTagReplacer::new(from, to)];
-        let (replaced_html, is_changed) = replacer.replace_all(html).await?;
-
-        assert!(is_changed);
-
-        let replaced_wikicode = bot.parsoid().transform_to_wikitext(&replaced_html).await?;
-
-        assert_eq!(after, replaced_wikicode);
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_duplicate_tag() -> anyhow::Result<()> {
-        let bot = test::bot().await;
-        let from = "Category:東京都の区立図書館".to_string();
-        let to = vec![
-            "Category:日本の公共図書館".to_string(),
-            "Category:東京都の区立図書館".to_string(),
-        ];
-
-        let before = indoc! {"\
+            [[Category:Name2]]
+        "},
+        indoc!{"\
+            [[Category:Name1]]
+            [[Category:Name2]]
+        "},
+        false,
+    )]
+    // Remove categories
+    #[case(
+        "Category:Name1",
+        &[],
+        indoc!{"\
+            [[Category:Name1]]
+        "},
+        "",
+        true,
+    )]
+    // Duplicate categories
+    #[case(
+        "Category:東京都の区立図書館",
+        &["Category:日本の公共図書館", "Category:東京都の区立図書館"],
+        indoc!{"\
             [[Category:東京都の区立図書館]]
-        "};
-        let after = indoc! {"\
+        "},
+        indoc!{"\
             [[Category:日本の公共図書館]]
             [[Category:東京都の区立図書館]]
-        "};
+        "},
+        true,
+    )]
+    // Regression test for https://ja.wikipedia.org/w/index.php?oldid=99373661#複製キューの誤動作
+    #[case(
+        "Category:福井県の市町村立図書館",
+        &["Category:日本の公共図書館", "Category:福井県の市町村立図書館"],
+        indoc!{"\
+            [[Category:日本の公共図書館|廃ふくいしりつふくい]]
+            [[Category:日本の市町村立図書館 (廃止)]]
+            [[Category:福井県の市町村立図書館|廃ふくいしりつふくい]]
+        "},
+        indoc!{"\
+            [[Category:日本の公共図書館|廃ふくいしりつふくい]]
+            [[Category:日本の市町村立図書館 (廃止)]]
+            [[Category:福井県の市町村立図書館|廃ふくいしりつふくい]]
+        "},
+        false,
+    )]
+    #[tokio::test]
+    async fn test_replace(
+        #[case] from: &str,
+        #[case] to: &[&str],
+        #[case] before_wikitext: &str,
+        #[case] after_wikitext: &str,
+        #[case] should_changed: bool,
+    ) -> anyhow::Result<()> {
+        let bot = test::bot().await;
+        let from = from.to_string();
+        let to = to.iter().map(|x| x.to_string()).collect::<Vec<_>>();
 
-        let html = bot.parsoid().transform_to_html(before).await?;
+        let html = bot.parsoid().transform_to_html(before_wikitext).await?;
 
-        let replacer = hlist![CategoryTagReplacer::new(from, to)];
-        let (replaced_html, is_changed) = replacer.replace_all(html).await?;
+        let replacer = CategoryTagReplacer::new(from.to_string(), to);
+        let replaced = replacer.replace(html).await?;
 
-        assert!(is_changed);
-
-        let replaced_wikicode = bot.parsoid().transform_to_wikitext(&replaced_html).await?;
-        assert_eq!(after, replaced_wikicode);
+        if should_changed {
+            let replaced_html = replaced.expect("wikitext should be changed");
+            let replaced_wikitext = bot.parsoid().transform_to_wikitext(&replaced_html).await?;
+            assert_eq!(after_wikitext, replaced_wikitext);
+        } else {
+            assert!(replaced.is_none());
+        }
 
         Ok(())
     }
