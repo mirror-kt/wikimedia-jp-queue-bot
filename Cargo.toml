@@ -22,7 +22,6 @@ path = "src/bin/rollback.rs"
 
 [dependencies]
 anyhow = "1.0.80"
-async-trait = "0.1.77"
 backon = "0.4.2"
 chrono = { version = "0.4.34", default-features = false, features = [
     "std",

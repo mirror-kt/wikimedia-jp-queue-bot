@@ -1,17 +1,18 @@
-use async_trait::async_trait;
 use derivative::Derivative;
 use futures_util::{stream, Stream, StreamExt, TryStreamExt};
 use indexmap::IndexMap;
 use mwbot::parsoid::prelude::*;
 use mwbot::Bot;
+use tap::Pipe;
 
 use crate::replacer::{CategoryReplacer, CategoryReplacerList};
 
 #[derive(Derivative)]
-#[derivative(Debug)]
+#[derivative(Debug, Clone)]
 pub struct RecursionReplacer<ReplacerList> {
     #[derivative(Debug = "ignore")]
     bot: Bot,
+    #[derivative(Clone(bound = "ReplacerList: Clone"))]
     replacers: ReplacerList,
 }
 
@@ -24,10 +25,9 @@ where
     }
 }
 
-#[async_trait]
 impl<ReplacerList> CategoryReplacer for RecursionReplacer<ReplacerList>
 where
-    ReplacerList: CategoryReplacerList,
+    ReplacerList: CategoryReplacerList + Clone,
 {
     async fn replace(&self, html: ImmutableWikicode) -> anyhow::Result<Option<ImmutableWikicode>> {
         let (replaced, mut is_changed) = self.replacers.replace_all(html).await?;
@@ -44,9 +44,9 @@ where
         let replaced_templates = stream::iter(templates)
             .then(|(index, params)| async move {
                 let replaced_params = stream::iter(params.clone())
-                    .params_to_html(&self.bot)
-                    .replace_params(self)
-                    .params_to_wikitext(&self.bot)
+                    .pipe(|s| params_to_html(s, &self.bot))
+                    .pipe(|s| replace_params(s, self.clone().boxed()))
+                    .pipe(|s| params_to_wikitext(s, &self.bot))
                     .try_collect::<Vec<_>>()
                     .await?;
 
@@ -83,42 +83,15 @@ where
     }
 }
 
-trait CustomStreamExt {
-    fn params_to_html(
-        self,
-        bot: &Bot,
-    ) -> impl Stream<Item = anyhow::Result<(String, ImmutableWikicode)>>
-    where
-        Self: Stream<Item = (String, String)>;
-
-    fn replace_params<'r, ReplacerList>(
-        self,
-        replacer: &'r RecursionReplacer<ReplacerList>,
-    ) -> impl Stream<Item = anyhow::Result<(String, Option<ImmutableWikicode>)>> + 'r
-    where
-        Self: Stream<Item = anyhow::Result<(String, ImmutableWikicode)>> + 'r,
-        ReplacerList: CategoryReplacerList + 'r;
-
-    fn params_to_wikitext(
-        self,
-        bot: &Bot,
-    ) -> impl Stream<Item = anyhow::Result<(String, Option<String>)>>
-    where
-        Self: Stream<Item = anyhow::Result<(String, Option<ImmutableWikicode>)>>;
-}
-
-impl<S> CustomStreamExt for S
+fn params_to_html<'s, S>(
+    stream: S,
+    bot: &'s Bot,
+) -> impl Stream<Item = anyhow::Result<(String, ImmutableWikicode)>> + 's
 where
-    S: Stream,
+    S: Stream<Item = (String, String)> + 's,
 {
-    fn params_to_html(
-        self,
-        bot: &Bot,
-    ) -> impl Stream<Item = anyhow::Result<(String, ImmutableWikicode)>>
-    where
-        Self: Stream<Item = (String, String)>,
-    {
-        self.map(|(k, v)| {
+    stream
+        .map(|(k, v)| {
             let bot = bot.clone();
             tokio::spawn(async move {
                 let v = bot.parsoid().transform_to_html(&v).await?;
@@ -127,44 +100,46 @@ where
             })
         })
         .then(|handle| async { handle.await? })
-    }
+}
 
-    fn replace_params<'r, ReplacerList>(
-        self,
-        replacer: &'r RecursionReplacer<ReplacerList>,
-    ) -> impl Stream<Item = anyhow::Result<(String, Option<ImmutableWikicode>)>> + 'r
-    where
-        Self: Stream<Item = anyhow::Result<(String, ImmutableWikicode)>> + 'r,
-        ReplacerList: CategoryReplacerList + 'r,
-    {
-        self.and_then(move |(k, v)| async move {
+fn replace_params<'s, 'r: 's, S, Replacer>(
+    stream: S,
+    replacer: Replacer,
+) -> impl Stream<Item = anyhow::Result<(String, Option<ImmutableWikicode>)>> + 's
+where
+    S: Stream<Item = anyhow::Result<(String, ImmutableWikicode)>> + 's,
+    Replacer: CategoryReplacer + Clone + 'r,
+{
+    stream.and_then(move |(k, v)| {
+        let replacer = replacer.clone();
+        async move {
             let replaced = replacer.replace(v).await?;
 
             Ok((k, replaced))
+        }
+    })
+}
+
+fn params_to_wikitext<'s, S>(
+    stream: S,
+    bot: &'s Bot,
+) -> impl Stream<Item = anyhow::Result<(String, Option<String>)>> + 's
+where
+    S: Stream<Item = anyhow::Result<(String, Option<ImmutableWikicode>)>> + 's,
+{
+    stream.and_then(|(k, v)| async {
+        let bot = bot.clone();
+
+        let v = tokio::spawn(async move {
+            match v {
+                Some(v) => anyhow::Ok(Some(bot.parsoid().transform_to_wikitext(&v).await?)),
+                None => Ok(None),
+            }
         })
-    }
+        .await??;
 
-    fn params_to_wikitext(
-        self,
-        bot: &Bot,
-    ) -> impl Stream<Item = anyhow::Result<(String, Option<String>)>>
-    where
-        Self: Stream<Item = anyhow::Result<(String, Option<ImmutableWikicode>)>>,
-    {
-        self.and_then(|(k, v)| async {
-            let bot = bot.clone();
-
-            let v = tokio::spawn(async move {
-                match v {
-                    Some(v) => anyhow::Ok(Some(bot.parsoid().transform_to_wikitext(&v).await?)),
-                    None => Ok(None),
-                }
-            })
-            .await??;
-
-            Ok::<_, anyhow::Error>((k, v))
-        })
-    }
+        Ok::<_, anyhow::Error>((k, v))
+    })
 }
 
 #[cfg(test)]
