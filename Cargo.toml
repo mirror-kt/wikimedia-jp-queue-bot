@@ -32,7 +32,7 @@ config = { version = "0.14.0", default-features = false, features = ["toml"] }
 derivative = "2.2.0"
 frunk_core = "0.4.2"
 futures-util = "0.3.30"
-indexmap = "2.2.3"
+indexmap = "2.2.4"
 mwapi_responses = "0.4.2"
 mwbot = "0.6.1"
 serde = { version = "1.0.197", features = ["derive"] }
