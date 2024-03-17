@@ -21,58 +21,56 @@ impl CategoryReplacer for CategoryTagReplacer {
         let html = html.into_mutable();
         let mut categories = html.filter_categories();
 
+        if self.to.contains(&self.from)
+            && self
+                .to
+                .iter()
+                .all(|to| categories.iter().any(|cat| cat.category() == *to))
+        {
+            return Ok(None);
+        }
+
         let Some(index) = categories
             .iter()
-            .position(|cat| cat.category() == self.from)
+            .position(|category| category.category() == self.from)
         else {
             return Ok(None);
         };
         let from = categories.remove(index);
 
-        let mut changed = 0;
         self.to
             .iter()
-            .filter(|to| categories.iter().all(|cat| cat.category() != **to))
-            .map(|to| {
-                if self.from == *to {
-                    Category::new(to, from.sort_key().as_deref())
+            .filter(|to| !categories.iter().any(|cat| cat.category() == **to))
+            .for_each(|cat| {
+                dbg!(&cat);
+                if *cat == from.category() {
+                    from.insert_before(&Category::new(cat, from.sort_key().as_deref()));
                 } else {
-                    Category::new(to, None)
+                    from.insert_before(&Category::new(cat, None));
                 }
-            })
-            .for_each(|to| {
-                from.insert_before(&to);
-                changed += 1;
             });
         from.detach();
+        dbg!(html
+            .filter_categories()
+            .iter()
+            .map(|cat| cat.category())
+            .collect::<Vec<_>>());
 
-        if !self.to.contains(&self.from) && changed > 0 {
-            // 再配属の場合 追加したカテゴリが1つ以上の場合は変更がある
-            Ok(Some(html.into_immutable()))
-        } else if self.to.contains(&self.from) && changed > 1 {
-            // 複製の場合 複製元のカテゴリも1度除去されて再追加されるので、変更がない場合もカウントが1になる
-            Ok(Some(html.into_immutable()))
-        } else if self.to.is_empty() && changed == 0 {
-            // 除去の場合
-            Ok(Some(html.into_immutable()))
-        } else {
-            // 変更がない場合
-            Ok(None)
-        }
+        Ok(Some(html.into_immutable()))
     }
 }
 
 #[cfg(test)]
 mod test {
     use indoc::indoc;
-    use pretty_assertions::assert_eq;
+    use pretty_assertions::assert_str_eq;
     use rstest::rstest;
 
     use crate::replacer::category_tag::CategoryTagReplacer;
     use crate::replacer::CategoryReplacer;
     use crate::util::test;
 
-    #[rstest]
+    #[rstest(::trace)]
     // Simple reassignment categories
     #[case(
         "Category:Name1",
@@ -97,7 +95,7 @@ mod test {
         "},
         true,
     )]
-    // noop when category is already added
+    // no duplicate tag when category is already added
     #[case(
         "Category:Name1",
         &["Category:Name2"],
@@ -105,11 +103,11 @@ mod test {
             [[Category:Name1]]
             [[Category:Name2]]
         "},
-        indoc!{"\
-            [[Category:Name1]]
+        indoc!{"
+            
             [[Category:Name2]]
         "},
-        false,
+        true,
     )]
     // Remove categories
     #[case(
@@ -156,7 +154,7 @@ mod test {
         #[case] to: &[&str],
         #[case] before_wikitext: &str,
         #[case] after_wikitext: &str,
-        #[case] should_changed: bool,
+        #[case] should_be_changed: bool,
     ) -> anyhow::Result<()> {
         let bot = test::bot().await;
         let from = from.to_string();
@@ -167,10 +165,13 @@ mod test {
         let replacer = CategoryTagReplacer::new(from.to_string(), to);
         let replaced = replacer.replace(html).await?;
 
-        if should_changed {
-            let replaced_html = replaced.expect("wikitext should be changed");
-            let replaced_wikitext = bot.parsoid().transform_to_wikitext(&replaced_html).await?;
-            assert_eq!(after_wikitext, replaced_wikitext);
+        if should_be_changed {
+            let replaced_wikitext = bot
+                .parsoid()
+                .transform_to_wikitext(&replaced.expect("wikitext should be changed"))
+                .await?;
+            dbg!(&replaced_wikitext);
+            assert_str_eq!(after_wikitext, replaced_wikitext);
         } else {
             assert!(replaced.is_none());
         }
