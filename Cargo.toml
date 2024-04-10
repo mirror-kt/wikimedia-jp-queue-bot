@@ -21,7 +21,7 @@ name = "rollback"
 path = "src/bin/rollback.rs"
 
 [dependencies]
-anyhow = "1.0.81"
+anyhow = "1.0.82"
 backon = "0.4.4"
 chrono = { version = "0.4.36", default-features = false, features = [
     "std",
