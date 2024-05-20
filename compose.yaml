@@ -14,7 +14,7 @@ services:
       retries: 10
 
   sqldef:
-    image: ghcr.io/mirror-kt/mysqldef:v0.17.9
+    image: ghcr.io/mirror-kt/mysqldef:0.17.10
     command: "-h database -uqueuebot -ppassword queuebot --file ./migration/def.sql"
     working_dir: /work
     volumes:
