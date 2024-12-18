@@ -28,7 +28,7 @@ chrono = { version = "0.4.38", default-features = false, features = [
     "clock",
     "unstable-locales",
 ] }
-config = { version = "0.14.0", default-features = false, features = ["toml"] }
+config = { version = "0.15.0", default-features = false, features = ["toml"] }
 derivative = "2.2.0"
 frunk_core = "0.4.2"
 futures-util = "0.3.30"
